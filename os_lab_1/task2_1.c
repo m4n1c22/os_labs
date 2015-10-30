@@ -42,7 +42,7 @@ int main() {
 	}
 	usleep(150000);
 	fprintf(stderr, "%s%d\n", "Parent Thread Execution. My Value ",my_value);
-	err = pthread_join(custom_threads,NULL);
+	err = pthread_join(custom_thread,NULL);
 	if(err!=0) {
 
 		exit(EXIT_FAILURE);
