@@ -11,6 +11,7 @@
 
 //Global variable generated for the processes.
 int my_value = 42;
+
 /**
 		\brief:	Function which implements the task 1.1.
 				It discusses the implementation of fork and wait system
@@ -27,7 +28,7 @@ void task_1_1_function() {
 	if(return_fork<0) {
 		
 		fprintf(stderr, "%s\n","Error in execution of fork function.");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	
 	}	
 	/*
@@ -62,7 +63,7 @@ void task_1_1_function() {
 		if(return_wait == -1) {
 
 			fprintf(stderr, "%s\n","Error in execution of wait function.");
-			exit(-1);		
+			exit(EXIT_FAILURE);		
 		}
 
 		fprintf(stderr, "%s%d\n", "Parent PID: ",getpid());
