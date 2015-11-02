@@ -15,11 +15,12 @@ void task_3_1_function() {
 
 	pid_t return_fork;
 	
-	mqd_t mqd;
+	mqd_t mqds, mqdc;
 	int mqsend;
 	//char *sndmsg;
 	char rcvmsg[200];
 	int status;
+	int returnstatus;
 	
 	//msg queue attributes initialisation	
 	struct mq_attr mqAttr;
@@ -47,10 +48,10 @@ void task_3_1_function() {
 		usleep(150000);
 		
 		//create message queue, returns queue descriptor, -1 on error
-		mqd = mq_open("/DEEDS_lab1_mq", O_CREAT|O_RDWR, 0644, &mqAttr); 
+		mqds = mq_open("/DEEDS_lab1_mq", O_CREAT|O_RDWR, 0644, &mqAttr); 
 
 		//Error handling for the Queue Creation.
-		if(mqd == -1) {
+		if(mqds == -1) {
 
 			fprintf(stderr, "%s\n","Error in Message Queue Creation.");
 			exit(EXIT_FAILURE);		
@@ -60,11 +61,11 @@ void task_3_1_function() {
 		fprintf(stderr, "%s\n","Message Queue Created."); 
 		
 		//open the queue for writing
-		mqd = mq_open("/DEEDS_lab1_mq", O_WRONLY);
+		mqds = mq_open("/DEEDS_lab1_mq", O_WRONLY);
 		
 		//sndmsg="Hi I am your Parent. My Pid= and myvalue=";
 		//add the message to the queue, returns 0 if OK, -1 on error		
-		mqsend=mq_send(mqd, "Hi I am your Parent", strlen("Hi I am your Parent")+1, 1);
+		mqsend=mq_send(mqds, "Hi I am your Parent", strlen("Hi I am your Parent")+1, 1);
 			
 			if(mqsend==-1) 
 			{
@@ -74,7 +75,22 @@ void task_3_1_function() {
 			else
 			{
 			fprintf(stderr, "%s\n","Message sent to queue."); 
+			
 			}
+		//queue closed by parent,returns 0 if OK, -1 on error		
+		returnstatus=mq_close (mqds);
+		if(returnstatus==-1) { fprintf(stderr, "%s\n","Error in Message Queue closing by Parent.");
+				 exit(EXIT_FAILURE); }
+		else { fprintf(stderr, "%s\n","Message Queue closed by Parent."); }
+
+		//queue deletion by parent,returns 0 if OK, -1 on error
+		returnstatus=mq_unlink("/DEEDS_lab1_mq");
+		if(returnstatus==-1) { fprintf(stderr, "%s\n","Error in Message Queue Deletion by Parent.");
+				 exit(EXIT_FAILURE); }
+		else { fprintf(stderr, "%s\n","Message Queue Deleted by Parent."); }
+		
+		
+		
 		}
 	}
 
@@ -88,28 +104,29 @@ void task_3_1_function() {
 		my_value = 18951;
 		
 		//open the queue for reading; returns queue descriptor, -1 on error		
-		mqd = mq_open("/DEEDS_lab1_mq", O_RDONLY);
-		if(mqd== -1) 
+		mqdc = mq_open("/DEEDS_lab1_mq", O_RDONLY);
+		if(mqdc== -1) 
 		{
 		fprintf(stderr, "%s\n","Error in Message Queue Creation.");
 			exit(EXIT_FAILURE);
 		}
 		else{ fprintf(stderr, "%s\n","Queue opened for reading."); 
 		//receive message from queue, returns length of received message, -1 on error
-		status = mq_receive(mqd, rcvmsg, sizeof(rcvmsg), NULL);
+		status = mq_receive(mqdc, rcvmsg, sizeof(rcvmsg), NULL);
 
 			if(status==-1) {
 			fprintf(stderr, "%s\n","Error in Message Queue Creation.");
 			exit(EXIT_FAILURE);
 			}
 			else{ 
-			fprintf(stderr, "%s%s\n","   Received Message from Queue: ", rcvmsg);
+			fprintf(stderr, "%s%s\n","Received Message from Queue: ", rcvmsg);
 			// close queue; returns: 0 if OK, -1 on error
-			status=mq_close(mqd);
+			status=mq_close(mqdc);
 			 	
-				if(mqd==-1) { fprintf(stderr, "%s\n","Error in Message Queue Creation.");
+				if(status==-1) { fprintf(stderr, "%s\n","Error in Message Queue Closing.");
 				exit(EXIT_FAILURE); }
 				else { fprintf(stderr, "%s\n","Queue closed by child."); }
+			exit(EXIT_SUCCESS);
 			}
 			
 		}
