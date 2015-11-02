@@ -48,7 +48,7 @@ void task_3_1_function() {
 		usleep(150000);
 		fprintf(stderr, "%s%d\n", "Parent Process Execution. My Value\n ",my_value);
 		
-		snprintf(buffer, sizeof(buffer), "Hi, I am your parent. My PID=%d and my_value=%d", getpid(), my_value);
+		sprintf(buffer, sizeof(buffer), "Hi, I am your parent. My PID=%d and my_value=%d", getpid(), my_value);
 
         	close(fd[0]);
 
