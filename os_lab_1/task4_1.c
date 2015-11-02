@@ -63,7 +63,6 @@ void task_3_1_function() {
 		//open the queue for writing
 		mqds = mq_open("/DEEDS_lab1_mq", O_WRONLY);
 		
-		//sndmsg="Hi I am your Parent. My Pid= and myvalue=";
 		//add the message to the queue, returns 0 if OK, -1 on error		
 		mqsend=mq_send(mqds, "Hi I am your Parent", strlen("Hi I am your Parent")+1, 1);
 			
@@ -80,17 +79,15 @@ void task_3_1_function() {
 		//queue closed by parent,returns 0 if OK, -1 on error		
 		returnstatus=mq_close (mqds);
 		if(returnstatus==-1) { fprintf(stderr, "%s\n","Error in Message Queue closing by Parent.");
-				 exit(EXIT_FAILURE); }
+				       exit(EXIT_FAILURE); }
 		else { fprintf(stderr, "%s\n","Message Queue closed by Parent."); }
 
 		//queue deletion by parent,returns 0 if OK, -1 on error
 		returnstatus=mq_unlink("/DEEDS_lab1_mq");
 		if(returnstatus==-1) { fprintf(stderr, "%s\n","Error in Message Queue Deletion by Parent.");
-				 exit(EXIT_FAILURE); }
+				       exit(EXIT_FAILURE); }
 		else { fprintf(stderr, "%s\n","Message Queue Deleted by Parent."); }
-		
-		
-		
+	
 		}
 	}
 
@@ -120,6 +117,8 @@ void task_3_1_function() {
 			}
 			else{ 
 			fprintf(stderr, "%s%s\n","Received Message from Queue: ", rcvmsg);
+			//The child process sleeps for 500ms.
+			usleep(500000);
 			// close queue; returns: 0 if OK, -1 on error
 			status=mq_close(mqdc);
 			 	
@@ -131,8 +130,7 @@ void task_3_1_function() {
 			
 		}
 		
-		//The child process sleeps for 500ms.
-		usleep(500000);
+		
 	}
 }
 
