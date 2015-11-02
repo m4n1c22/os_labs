@@ -118,7 +118,7 @@ void task_3_1_function() {
 			else{ 
 			fprintf(stderr, "%s%s\n","Received Message from Queue: ", rcvmsg);
 			//The child process sleeps for 500ms.
-			usleep(500000);
+			//usleep(500000);
 			// close queue; returns: 0 if OK, -1 on error
 			status=mq_close(mqdc);
 			 	
