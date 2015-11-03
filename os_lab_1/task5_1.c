@@ -3,10 +3,15 @@
 		\author			:		Sreeram Sadasivam
 		\brief			: 		Understanding the implementation of shared memory in operating system.
 */
-
-#include<stdio.h>
-#include<stdlib.h>
-#include<unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/shm.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <sys/wait.h>		
+#include <sys/types.h>
+#include <unistd.h>	
 
 //Macros
 #define BUFFER_SIZE 1024
@@ -22,68 +27,59 @@ int my_value = 42;
 void task_5_1_function() {
 
 	char *buffer;
-	
-	int fd;
+	const char *shm_name = "/DEEDS_lab1_shm";
+	int shm_fd;
 
 	pid_t return_fork;
 	pid_t return_wait;
-        
-	fd = shm_open ( "/DEEDS_lab1_shm" , O_CREAT | O_EXCL | O_RDWR,S_IRUSR | S_IWUSR);
-    ftruncate (fd, BUFFER_SIZE);
-    addr = mmap ( NULL , BUFFER_SIZE, PROT_READ | PROT_WRITE,MAP_SHARED , fd, 0);
 
-	
-
-/*	
-	if(pipe(fd)==-1){
-	fprintf(stderr,"Pipe creation failed\n");	
-	}
-	else{
-	fprintf(stderr,"pipe creation successful\n");
-	}
-*/
 	
 	return_fork = fork();
 
-	if(return_fork<0) {
-		
+	if(return_fork<0) {		
 		fprintf(stderr, "%s\n","Error in execution of fork function.");
 		exit(EXIT_FAILURE);
 	
 	}	
-
-	
 	else if(return_fork > 0){
 		
 		usleep(150000);
 
+		shm_fd = shm_open ( shm_name , O_CREAT | O_RDWR, 0666);    	   
+		if (shm_fd == -1) {
+			fprintf(stderr,"%s\n","Shared memory failed");
+			exit(EXIT_FAILURE);
+		}
 
+    	ftruncate (shm_fd, BUFFER_SIZE);
 
-		fprintf(stderr, "%s%d\n", "Parent Process Execution. My Value\n ",my_value);
+    	buffer = (char*) mmap ( NULL , BUFFER_SIZE, PROT_READ | PROT_WRITE,MAP_SHARED , shm_fd, 0);
+
+    	if(buffer == MAP_FAILED) {
+			fprintf(stderr, "%s\n", "Memory mapping failed...");    		
+    	}
+
+		fprintf(stdout, "%s%d\n", "Parent Process Execution. My Value ",my_value);
 		
-		snprintf(buffer, sizeof(buffer), "Hi, I am your parent. My PID=%d and my_value=%d", getpid(), my_value);
+		sprintf(buffer,"Hi, I am your parent. My PID=%d and my_value=%d", getpid(), my_value);
 
-        close(fd[0]);
-
-        	
-		write(fd[1],buffer,sizeof(buffer));	
-		
-        	
 		return_wait = wait(NULL);
 
-		
 		if(return_wait == -1) {
 
 			fprintf(stderr, "%s\n","Error in execution of wait function.");
 			exit(EXIT_FAILURE);		
 		}
 
-		fprintf(stderr, "%s%d\n", "Parent PID: ",getpid());
-		fprintf(stderr, "%s%d\n", "Child PID: ",return_fork);
-		close(fd[1]);
+		fprintf(stdout, "%s%d\n", "Parent PID: ",getpid());
+		fprintf(stdout, "%s%d\n", "Child PID: ",return_fork);
+		
+		if (shm_unlink(shm_name) == -1) {
+			printf("Error removing %s\n",shm_name);
+			exit(EXIT_FAILURE);
+		}	
+
 		exit(EXIT_SUCCESS);
-
-
 	}
 	/*
 		Condition block run by the child process since, fork function returns 0 
@@ -93,18 +89,24 @@ void task_5_1_function() {
 
 		
 		usleep(150000);
-		
-		
-		close(fd[1]);
-		
+		my_value = 18951;
 
-		read(fd[0],buffer,sizeof(buffer));
+		shm_fd = shm_open ( shm_name , O_RDONLY, 0666);
 
-		usleep(500000);
-		fprintf(stderr,"Received message at child is %s\n",buffer);
+		if (shm_fd == -1) {
+			fprintf(stderr,"%s\n","Shared memory failed");
+			exit(EXIT_FAILURE);
+		}
+		fprintf(stdout, "%s%d\n", "Child Process Execution. My Value ",my_value);
+    	
+    	usleep(500000);
 
-	
-		close(fd[0]);
+    	buffer = (char*) mmap ( NULL , BUFFER_SIZE, PROT_READ,MAP_SHARED , shm_fd, 0);
+
+    	if(buffer == MAP_FAILED) {
+			fprintf(stderr, "%s\n", "Memory mapping failed...");    		
+    	}		
+		fprintf(stdout,"Received message at child is %s\n",buffer);
 		exit(EXIT_SUCCESS);
 	}
 }
