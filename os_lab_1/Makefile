@@ -6,6 +6,8 @@ make_task2_1: task2_1.c
 		   	  gcc -Wall -o task2_1.exe task2_1.c -lpthread
 make_task3_1: task3_1.c 
 		   	  gcc -Wall -o task3_1.exe task3_1.c
+make_task4_1: task4_1.c
+			  gcc -Wall -o task4_1.exe task4_1.c -lrt
 make_task5_1: task5_1.c 
 		   	  gcc -Wall -o task5_1.exe task5_1.c -lrt
 
@@ -16,6 +18,8 @@ run_task2_1: task2_1.exe
 		./task2_1.exe	
 run_task3_1: task3_1.exe
 		./task3_1.exe
+run_task4_1: task4_1.exe
+		./task4_1.exe
 run_task5_1: task5_1.exe
 		./task5_1.exe
 clean: 
