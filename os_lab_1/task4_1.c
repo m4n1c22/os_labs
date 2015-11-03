@@ -11,7 +11,7 @@
 int my_value = 42;
 
 
-void task_3_1_function() {
+void task_4_1_function() {
 
 	pid_t return_fork;
 	
@@ -136,6 +136,6 @@ void task_3_1_function() {
 
 int main() {
 
-	task_3_1_function();
+	task_4_1_function();
 	return 0;
 }
