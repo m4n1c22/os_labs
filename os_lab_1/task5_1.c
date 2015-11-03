@@ -21,12 +21,16 @@ int my_value = 42;
 */
 void task_5_1_function() {
 
-	char buffer[BUFFER_SIZE];
+	char *buffer;
 	
+	int fd;
+
 	pid_t return_fork;
 	pid_t return_wait;
         
-	
+	fd = shm_open ( "/DEEDS_lab1_shm" , O_CREAT | O_EXCL | O_RDWR,S_IRUSR | S_IWUSR);
+    ftruncate (fd, BUFFER_SIZE);
+    addr = mmap ( NULL , BUFFER_SIZE, PROT_READ | PROT_WRITE,MAP_SHARED , fd, 0);
 
 	
 
@@ -53,8 +57,8 @@ void task_5_1_function() {
 		
 		usleep(150000);
 
-		
-		
+
+
 		fprintf(stderr, "%s%d\n", "Parent Process Execution. My Value\n ",my_value);
 		
 		snprintf(buffer, sizeof(buffer), "Hi, I am your parent. My PID=%d and my_value=%d", getpid(), my_value);
