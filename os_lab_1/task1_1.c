@@ -3,12 +3,7 @@
 		\author		:		Sreeram Sadasivam
 		\brief 		:		Understanding fork() and wait() system calls.
 */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/wait.h>		
-#include <sys/types.h>
+#include "common.h"
 
 
 //Global variable generated for the processes.

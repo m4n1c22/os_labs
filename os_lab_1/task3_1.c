@@ -1,10 +1,5 @@
 
-
-#include<stdio.h>
-#include<stdlib.h>
-#include<unistd.h>
-#define BUFFER_SIZE 1024
-
+#include "common.h"
 
 //Global variable generated for the processes.
 int my_value = 42;

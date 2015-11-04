@@ -3,25 +3,7 @@
 		\author			:		Sreeram Sadasivam
 		\brief			: 		Understanding the implementation of shared memory in operating system.
 */
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <sys/shm.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <sys/wait.h>		
-#include <sys/types.h>
-#include <unistd.h>	
-#include <string.h>		
-
-//Macros
-#define BUFFER_SIZE 1024
-
-//Enumerations
-typedef enum {
-	SCENARIO_BEFORE_WAIT=0,
-	SCENARIO_AFTER_WAIT=1
-}eSCENARIO;		
+#include "common.h"
 
 //Global variable generated for the processes.
 int my_value = 42;
