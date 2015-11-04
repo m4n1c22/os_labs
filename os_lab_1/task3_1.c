@@ -10,7 +10,7 @@ int my_value = 42;
 */
 void task_3_1_function() {
 
-        int fd[2];
+    int fd[2];
 	char buffer[BUFFER_SIZE];
 	
 	pid_t return_fork;
@@ -43,7 +43,7 @@ void task_3_1_function() {
 		usleep(150000);
 		fprintf(stderr, "%s%d\n", "Parent Process Execution. My Value\n ",my_value);
 		
-		sprintf(buffer, sizeof(buffer), "Hi, I am your parent. My PID=%d and my_value=%d", getpid(), my_value);
+		sprintf(buffer, "Hi, I am your parent. My PID=%d and my_value=%d", getpid(), my_value);
 
         	close(fd[0]);
 
