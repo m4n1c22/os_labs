@@ -8,12 +8,13 @@ int my_value = 42;
 void task_4_1_function() {
 
 	pid_t return_fork;
+	pid_t return_wait;
 	
 	mqd_t mqds, mqdc;
 	int mqsend;
-	//char *sndmsg;
-	char rcvmsg[200];
-	int status;
+	//char *sndmsg; char snd[256];
+	char rcvmsg[256];
+	int status; 
 	int returnstatus;
 	
 	//msg queue attributes initialisation	
@@ -41,6 +42,7 @@ void task_4_1_function() {
 		//The process sleeps for 150ms.
 		usleep(150000);
 		
+		fprintf(stderr, "%s%d\n", "Parent Process Execution. My Value:",my_value);
 		//create message queue, returns queue descriptor, -1 on error
 		mqds = mq_open("/DEEDS_lab1_mq", O_CREAT|O_RDWR, 0644, &mqAttr); 
 
@@ -50,39 +52,55 @@ void task_4_1_function() {
 			fprintf(stderr, "%s\n","Error in Message Queue Creation.");
 			exit(EXIT_FAILURE);		
 		}
-		else
-		{  
+		
 		fprintf(stderr, "%s\n","Message Queue Created."); 
 		
 		//open the queue for writing
 		mqds = mq_open("/DEEDS_lab1_mq", O_WRONLY);
 		
+				
 		//add the message to the queue, returns 0 if OK, -1 on error		
 		mqsend=mq_send(mqds, "Hi I am your Parent", strlen("Hi I am your Parent")+1, 1);
+
+		//fprintf(stderr, "%s%s\n", "Send Message:", sndmsg);
 			
 			if(mqsend==-1) 
 			{
-			fprintf(stderr, "%s\n","Error in Message Sennding to Queue");
+			fprintf(stderr, "%s\n","Error in Message Sending to Queue");
 			exit(EXIT_FAILURE);		
 			}
-			else
-			{
-			fprintf(stderr, "%s\n","Message sent to queue."); 
 			
+			fprintf(stderr, "%s\n","Message sent to queue."); 
+
+			return_wait = wait(NULL);
+			if(return_wait == -1) 
+			{
+			fprintf(stderr, "%s\n","Error in execution of wait function.");
+			exit(EXIT_FAILURE);
 			}
+
 		//queue closed by parent,returns 0 if OK, -1 on error		
 		returnstatus=mq_close (mqds);
-		if(returnstatus==-1) { fprintf(stderr, "%s\n","Error in Message Queue closing by Parent.");
-				       exit(EXIT_FAILURE); }
-		else { fprintf(stderr, "%s\n","Message Queue closed by Parent."); }
+		if(returnstatus==-1)
+		{
+		fprintf(stderr, "%s\n","Error in Message Queue closing by Parent.");
+				       exit(EXIT_FAILURE); 
+			
+		}
+		
+		fprintf(stderr, "%s\n","Message Queue closed by Parent."); 
 
 		//queue deletion by parent,returns 0 if OK, -1 on error
 		returnstatus=mq_unlink("/DEEDS_lab1_mq");
-		if(returnstatus==-1) { fprintf(stderr, "%s\n","Error in Message Queue Deletion by Parent.");
-				       exit(EXIT_FAILURE); }
-		else { fprintf(stderr, "%s\n","Message Queue Deleted by Parent."); }
-	
+		if(returnstatus==-1) 
+		{ 
+		fprintf(stderr, "%s\n","Error in Message Queue Deletion by Parent.");
+				       exit(EXIT_FAILURE); 
+		
 		}
+		fprintf(stderr, "%s\n","Message Queue Deleted by Parent."); 
+	
+		
 	}
 
 	//child process
@@ -94,6 +112,8 @@ void task_4_1_function() {
 		//my_value is modified by the child process from 42 to a different value.
 		my_value = 18951;
 		
+		fprintf(stderr, "%s%d\n", "Child Process Execution. My Value:",my_value);
+
 		//open the queue for reading; returns queue descriptor, -1 on error		
 		mqdc = mq_open("/DEEDS_lab1_mq", O_RDONLY);
 		if(mqdc== -1) 
@@ -101,30 +121,31 @@ void task_4_1_function() {
 		fprintf(stderr, "%s\n","Error in Message Queue Creation.");
 			exit(EXIT_FAILURE);
 		}
-		else{ fprintf(stderr, "%s\n","Queue opened for reading."); 
+		fprintf(stderr, "%s\n","Queue opened for reading."); 
 		//receive message from queue, returns length of received message, -1 on error
 		status = mq_receive(mqdc, rcvmsg, sizeof(rcvmsg), NULL);
 
-			if(status==-1) {
-			fprintf(stderr, "%s\n","Error in Message Queue Creation.");
+			if(status==-1) 
+			{
+			fprintf(stderr, "%s\n","Error in Receiving Message from Queue.");
 			exit(EXIT_FAILURE);
 			}
-			else{ 
-			fprintf(stderr, "%s%s\n","Received Message from Queue: ", rcvmsg);
+			
 			//The child process sleeps for 500ms.
-			//usleep(500000);
+			usleep(500000);
+			fprintf(stderr, "%s%s\n","Received Message from Queue: ", rcvmsg);
+			
 			// close queue; returns: 0 if OK, -1 on error
 			status=mq_close(mqdc);
 			 	
-				if(status==-1) { fprintf(stderr, "%s\n","Error in Message Queue Closing.");
-				exit(EXIT_FAILURE); }
-				else { fprintf(stderr, "%s\n","Queue closed by child."); }
-			exit(EXIT_SUCCESS);
-			}
+				if(status==-1) 
+				{ 
+				fprintf(stderr, "%s\n","Error in Message Queue Closing.");
+				exit(EXIT_FAILURE);
+				}
+				fprintf(stderr, "%s\n","Queue closed by child."); 
+				exit(EXIT_SUCCESS);
 			
-		}
-		
-		
 	}
 }
 
