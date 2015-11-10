@@ -2,7 +2,7 @@
     for Parent: my_value is 42
     for Child: my_value is 18951
 
-2.2) After running many times I observed following.
+2.2) After running many times we observed the following.
     Newly created thread sometimes run before the main thread or sometimes late. Even though thread run concurrent,
     they wont get executed at the same time.
     In task 1, Parent process executes always first.
