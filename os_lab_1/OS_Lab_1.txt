@@ -1,1 +1,7 @@
 
+
+4.1) A pipe allows the flow of data in one direction. When data needs to be communicated bidirectional, two pies are to be created. Only related processes (those in the same branch of the process tree) can communicate through a pipe. Pipes, once closed, require some amount of cooperation on both sides to reestablish them.
+A message queue is used to transfer "messages", which have a type and size. Several processes may send to and receive from the same queue.  Message queues can be closed and reopened on either side without the coorporation of the other side. 
+
+
+4.2) 
