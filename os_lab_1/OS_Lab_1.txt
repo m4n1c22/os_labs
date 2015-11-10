@@ -4,7 +4,7 @@
 
 2.1) After running many times we observed the following.
     Newly created thread sometimes run before the main thread or sometimes late. Even though thread run concurrent,
-    they wont get executed at the same time. Here memory is shared between Parent and Child, so execution order matters.
+    they wont get executed at the same time. Here memory is shared between Parent and Child, so execution order   matters.
     In task 1, Parent and Child process won't share the memory.
 
 3.1) After running 100 times, we noticed that the parent block executes first, until the wait() call. 
