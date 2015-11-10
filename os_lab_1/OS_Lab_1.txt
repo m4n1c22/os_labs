@@ -2,10 +2,10 @@
     for Parent: my_value is 42
     for Child: my_value is 18951
 
-2.2) After running many times we observed the following.
+2.1) After running many times we observed the following.
     Newly created thread sometimes run before the main thread or sometimes late. Even though thread run concurrent,
-    they wont get executed at the same time.
-    In task 1, Parent process executes always first.
+    they wont get executed at the same time. Here memory is shared between Parent and Child, so execution order matters.
+    In task 1, Parent and Child process won't share the memory.
 
 3.1) After running 100 times, we noticed that the parent block executes first, until the wait() call. 
      Regarding my_value, the output is always the same.
@@ -20,4 +20,5 @@
 4.2)  One use case of Message queues within multithreading (internally in a program) is that message queues can be       used  as a facility to exchange or queue data from a producer thread to a consumer thread to do asynchronous	      processing. When need to utilise more parallelism also involving multiple communicating processes for 		      common set of messages, this can be applied.
 
 
-5.1) After running for several times we observed that,
+5.1) We have implemented, two scenarios: scenario_before_wait and scenario_after_wait. In scenario before wait, 
+     Parent process try to read the 'buffer' before child process has written the message. So Parent process reads nothing at the beginning. In Scenario_after_wait, Parent process will wait for Child process to complete writing its message, and then Parent process reads it successfully.
