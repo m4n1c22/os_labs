@@ -7,6 +7,12 @@
     they wont get executed at the same time.
     In task 1, Parent process executes always first.
 
+3.1) After running 100 times, we noticed that the parent block executes first, until the wait() call. 
+     Regarding my_value, the output is always the same.
+     for Parent: my_value is 42
+     for Child: my_value is 18951
+	
+
 4.1) A pipe allows the flow of data in one direction. When data needs to be communicated bidirectional, two pies are
      to be created. Only related processes (those in the same branch of the process tree) can communicate through a
      pipe. Pipes, once closed, require some amount of cooperation on both sides to reestablish them.
