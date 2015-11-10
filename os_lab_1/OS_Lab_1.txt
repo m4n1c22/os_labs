@@ -7,7 +7,6 @@
     they wont get executed at the same time.
     In task 1, Parent process executes always first.
 
-<<<<<<< HEAD
 3.1) After running 100 times, we noticed that the parent block executes first, until the wait() call. 
      Regarding my_value, the output is always the same.
      for Parent: my_value is 42
