@@ -43,7 +43,7 @@ void task_3_1_function() {
 		/*sleep for 150 ms*/
 		usleep(150000);
 
-		fprintf(stderr, "%s%d\n", "Parent Process Execution. My Value\n ",my_value);
+		fprintf(stderr, "%s%d\n", "Parent Process Execution. My Value ",my_value);
 
 		/*create the message to be passed on to the child process*/
 		sprintf(buffer, "Hi, I am your parent. My PID=%d and my_value=%d", getpid(), my_value);
@@ -82,6 +82,13 @@ void task_3_1_function() {
 
 		/*sleep for 150 ms*/		
 		usleep(150000);
+		
+		/*my_value is modified by the child process from 42 to a different value.*/
+		my_value = 18951;
+
+		/*print the child pid from within the child*/
+		fprintf(stderr, "%s%d\n", "Child Process Execution. My Value ",my_value);
+		fprintf(stderr, "%s%d\n", "From Child -> PID: ",getpid());
 		
 		/*since child only reads the message from parent, close the write channel of the pipe*/
 		close(fd[1]);
