@@ -1,8 +1,3 @@
-/**
-		\file 			:		task5_1.c
-		\author			:		Sreeram Sadasivam
-		\brief			: 		Understanding the implementation of shared memory in operating system.
-*/
 #include "common.h"
 
 //Global variable generated for the processes.
@@ -15,32 +10,37 @@ int my_value = 42;
 void task_5_1_function(eSCENARIO scenario) {
 
 	char *buffer;
+//	set shared memory name
 	const char *shm_name = "/DEEDS_lab1_shm";
 	int shm_fd;
 
 	pid_t return_fork;
 	pid_t return_wait;
 
-	
+//	fork a child process
 	return_fork = fork();
 
+//	Check if there is error in forking a child process
 	if(return_fork<0) {		
 		fprintf(stderr, "%s\n","Error in execution of fork function.");
 		exit(EXIT_FAILURE);
 	
-	}	
+	}
+//		if child forking of child process successful
 	else if(return_fork > 0){
-		
+//		sleep for 150 ms
 		usleep(150000);
-
+//		creates and opens SMO; returns SMO handle, -1 on error
 		shm_fd = shm_open ( shm_name , O_CREAT | O_RDWR, 0666);    	   
 		if (shm_fd == -1) {
 			fprintf(stderr,"%s\n","Shared memory failed");
 			exit(EXIT_FAILURE);
 		}
 
+//		set SMO length; returns 0 if OK, -1 on error
     	ftruncate (shm_fd, BUFFER_SIZE);
 
+//		create a memory map and store in buffer
     	buffer = (char*) mmap ( NULL , BUFFER_SIZE, PROT_READ | PROT_WRITE,MAP_SHARED , shm_fd, 0);
 
     	if(buffer == MAP_FAILED) {
