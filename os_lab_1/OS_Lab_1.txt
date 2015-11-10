@@ -7,15 +7,14 @@
     they wont get executed at the same time.
     In task 1, Parent process executes always first.
 
-4.1) A pipe allows the flow of data in one direction. When data needs to be communicated bidirectional, two pies are
-     to be created. Only related processes (those in the same branch of the process tree) can communicate through a
-     pipe. Pipes, once closed, require some amount of cooperation on both sides to reestablish them.
-     A message queue is used to transfer "messages", which have a type and size. Several processes may send to and
-     receive from the same queue.  Message queues can be closed and reopened on either side without the cooperation
-     of the other side.
+4.1)After executing several times, its observed that sometimes child executes once parent sends the message to queue     and in some cases, child process starts executing before parent sends the message to the queue.  But in all cases     even if parent or child executes, parent waits for child to finish execution, then unlinks the message queue.
+    A pipe allows  the flow of data in one direction. When data needs to be communicated bidirectional, two pies         are to be created. Only related processes (those in the same branch of the process tree) can communicate through     a pipe. Pipes, once closed, require some amount of cooperation on both sides to reestablish them.
+    A message queue is used to transfer "messages", which have a type and size. Several processes may send to and
+    receive from the same queue.  Message queues can be closed and reopened on either side without the cooperation
+    of the other side. 
 
 
-4.2) The idea of using message queues in multithreading is to have the thread class use regular message queues to receive requests from other threads.
+4.2) The idea of using message queues in multithreading is to have the thread class use regular message queues to        receive requests from other threads.
 
 
 5.1) After running for several times we observed that,
