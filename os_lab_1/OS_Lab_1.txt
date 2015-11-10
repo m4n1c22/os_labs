@@ -4,7 +4,7 @@
 
 2.1) After running many times we observed the following.
     Newly created thread sometimes run before the main thread or sometimes late. Even though thread run concurrent,
-    they wont get executed at the same time. Here memory is shared between Parent and Child, so execution order   matters.
+    they wont get executed at the same time. Here memory is shared between Parent and Child, so execution order matters.
     In task 1, Parent and Child process won't share the memory.
 
 3.1) After running 100 times, we noticed that the parent block executes first, until the wait() call. 
@@ -13,12 +13,10 @@
      for Child: my_value is 18951
 	
 
-4.1)	After executing several times, its observed that sometimes child executes once parent sends the message to 	queue and in some cases, child process starts executing before parent sends the message to the queue.  But     	in all cases even if parent or child executes, parent waits for child to finish execution, then unlinks the     		message queue. 
-	A pipe allows  the flow of data in one direction. When data needs to be communicated 	bidirectional, two 	pipes are to be created. Only related processes (those in the same branch of the process tree) 	can communicat		te through a pipe. Pipes, once closed, require some amount of cooperation on both sides to reestablish 			them. A message queue is used to transfer "messages", which have a type and size. Several processes 		may send to and receive from the same queue.  Message queues can be closed and reopened on either side 		without the cooperation of the other side. Message queues has fixed number of entries, each with maximum 		size.
+4.1)	After executing several times, its observed that sometimes child executes once parent sends the message to 	queue and in some cases, child process starts executing before parent sends the message to the queue.  But in all cases even if parent or child executes, parent waits for child to finish execution, then unlinks the message queue. A pipe allows the flow of data in one direction. When data needs to be communicated bidirectional, two pipes are to be created. Only related processes (those in the same branch of the process tree) can communicate through a pipe. Pipes, once closed, require some amount of cooperation on both sides to reestablish them. A message queue is used to transfer "messages", which have a type and size. Several processes may send to and receive from the same queue.  Message queues can be closed and reopened on either side without the cooperation of the other side. Message queues has fixed number of entries, each with maximum size.
 
 
-4.2)  One use case of Message queues within multithreading (internally in a program) is that message queues can be       used  as a facility to exchange or queue data from a producer thread to a consumer thread to do asynchronous	      processing. When need to utilise more parallelism also involving multiple communicating processes for 		      common set of messages, this can be applied.
+4.2)  One use case of Message queues within multithreading (internally in a program) is that message queues can be used as a facility to exchange or queue data from a producer thread to a consumer thread to do asynchronous processing. When need to utilise more parallelism also involving multiple communicating processes for common set of messages, this can be applied.
 
 
-5.1) We have implemented, two scenarios: scenario_before_wait and scenario_after_wait. In scenario before wait, 
-     Parent process try to read the 'buffer' before child process has written the message. So Parent process reads nothing at the beginning. In Scenario_after_wait, Parent process will wait for Child process to complete writing its message, and then Parent process reads it successfully.
+5.1) We have implemented, two scenarios: scenario_before_wait and scenario_after_wait. In scenario before wait, Parent process try to read the 'buffer' before child process has written the message. So Parent process reads nothing at the beginning. In Scenario_after_wait, Parent process will wait for Child process to complete writing its message, and then Parent process reads it successfully.
