@@ -14,8 +14,8 @@
 	
 3.2) Pros: 
      Pipes offer point to point communication between related processes. 
-     IPC using pipes is snychronized, ie. read() sleeps until there is data available in the pipe. 
-     Pipe is also removed from memmory when the process maintaining its descriptor completes execution. Hence, maintainence is easier.(process persistent)
+     IPC using pipes is synchronized, ie. read() sleeps until there is data available in the pipe.
+     Pipe is also removed from memory when the process maintaining its descriptor completes execution. Hence, maintenance is easier.(process persistent)
 
      Cons: 
      This also means that there is less control while using pipes because they do not facilitate asynchronous communication. 
