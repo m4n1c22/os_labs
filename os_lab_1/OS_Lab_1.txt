@@ -15,7 +15,7 @@
      of the other side.
 
 
-4.2) 
+4.2) The idea of using message queues in multithreading is to have the thread class use regular message queues to receive requests from other threads.
 
 
 5.1) After running for several times we observed that,
