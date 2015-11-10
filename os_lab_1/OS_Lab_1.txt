@@ -14,7 +14,7 @@
     of the other side. 
 
 
-4.2) The idea of using message queues in multithreading is to have the thread class use regular message queues to        receive requests from other threads.
+4.2) one use case of Message queues within multithreading (internally in a program) is that message queues can be        used  as a facility to exchange or queue data from a producer thread to a consumer thread to do async processing.
 
 
 5.1) After running for several times we observed that,
