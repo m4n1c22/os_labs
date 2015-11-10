@@ -12,6 +12,7 @@ void task_4_1_function() {
 	
 	//message queue descriptor
 	mqd_t mqds, mqdc;
+	
 	int mqsend;
 	char rcvmsg[256];
 	int status; 
