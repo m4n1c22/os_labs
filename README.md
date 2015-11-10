@@ -29,6 +29,6 @@ Task 5:<br />
 
 # Team members
 Advith Nagappa<br />
-Bharati Priya<br />
+Bharathi Priya<br />
 Pradeep Baradur<br />
 Sreeram Sadasivam<br />
