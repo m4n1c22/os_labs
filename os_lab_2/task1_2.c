@@ -11,7 +11,8 @@ MODULE_LICENSE("GPL");
 
 //Macros
 
-#define PROC_FILE_NAME	"deeds_clock"
+#define PROC_FILE_NAME			"deeds_clock"
+#define PROC_CONFIG_FILE_NAME	"deeds_clock_config"
 
 //procfs_dir object
 
