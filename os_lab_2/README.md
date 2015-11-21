@@ -8,6 +8,7 @@ Understanding various Operating Systems Kernel & Device Driver fundamentals.
 The folder contains: 
 - Makefile 
 - task1_1.c - Implementation of task1_1. 
+
 #####Build & Run
  
 Makefile is meant to build the various tasks in the given folder.
