@@ -16,21 +16,28 @@ MODULE_LICENSE("GPL");
 //procfs_dir object
 
 static struct proc_dir_entry *proc_file_entry;
-
+static int finished;
 // this method is executed when reading from the module
 static ssize_t gen_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
 	struct timeval timeval_obj;
+	int ret=0;
+	
 	do_gettimeofday(&timeval_obj);
+	
 	printk(KERN_INFO "Task1.1 Module read.\n");
-	sprintf(buf,"current time:%ld seconds",timeval_obj.tv_sec);
-	printk(KERN_INFO "current time:%ld seconds \n",timeval_obj.tv_sec);
+	if(!finished) {
+		ret += sprintf(buf+ret,"current time:%ld seconds\n",timeval_obj.tv_sec);
+		finished = 1;
+		return ret;
+	}	
 	return 0;
 }
 // this method is called whenever the module is being used
 // e.g. for both read and write operations
 static int gen_module_open(struct inode * inode, struct file * file)
 {
+	finished = 0;
 	printk(KERN_INFO "Task1.1 Module opened.\n");
 	return 0;
 }
@@ -70,6 +77,8 @@ static int __init gen_module_init(void)
 static void __exit gen_module_cleanup(void)
 {
 	printk(KERN_INFO "Task1.1 module is being unloaded.\n");
+	
+	//TODO:Error conditions to be handled
 	proc_remove(proc_file_entry);
 }
 
