@@ -22,7 +22,7 @@ static int finished;
 static int option;
 
 // this method is executed when reading from the module
-static ssize_t gen_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
+static ssize_t deeds_clock_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
 	struct timeval timeval_obj;
 	struct tm tm_obj;
@@ -30,7 +30,7 @@ static ssize_t gen_module_read(struct file *file, char *buf, size_t count, loff_
 	
 	do_gettimeofday(&timeval_obj);
 	
-	printk(KERN_INFO "Task1.2 Module read.\n");
+	printk(KERN_INFO "Deeds Clock Module read.\n");
 	if(!finished) {
 		if(option) {			
 			time_to_tm(get_seconds(),sys_tz.tz_minuteswest * 60, &tm_obj);		
@@ -45,8 +45,15 @@ static ssize_t gen_module_read(struct file *file, char *buf, size_t count, loff_
 	return 0;
 }
 
+// this method is executed when reading from the module
+static ssize_t deeds_clock_config_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
+{
+	return 0;
+}
+
+
 // this method is executed when writing to the module
-static ssize_t gen_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
+static ssize_t deeds_clock_config_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
 	printk(KERN_INFO "Task1.2 Module written.\n");
 	
@@ -66,33 +73,51 @@ static ssize_t gen_module_write(struct file *file, const char *buf, size_t count
 
 // this method is called whenever the module is being used
 // e.g. for both read and write operations
-static int gen_module_open(struct inode * inode, struct file * file)
+static int deeds_clock_module_open(struct inode * inode, struct file * file)
 {
-	printk(KERN_INFO "Task1.2 Module opened.\n");
+	printk(KERN_INFO "Deeds Clock Module opened.\n");
+	finished=0;
+	return 0;
+}
+
+// this method is called whenever the module is being used
+// e.g. for both read and write operations
+static int deeds_clock_config_module_open(struct inode * inode, struct file * file)
+{
+	printk(KERN_INFO "Deeds Clock config Module opened.\n");
 	finished=0;
 	return 0;
 }
 
 // this method releases the module and makes it available for new operations
-static int gen_module_release(struct inode * inode, struct file * file)
+static int deeds_clock_module_release(struct inode * inode, struct file * file)
 {
-	printk(KERN_INFO "Task1.2 Module released.\n");
+	printk(KERN_INFO "Deeds clock Module released.\n");
+	return 0;
+}
+
+
+// this method releases the module and makes it available for new operations
+static int deeds_clock_config_module_release(struct inode * inode, struct file * file)
+{
+	printk(KERN_INFO "Deeds clock config Module released.\n");
 	return 0;
 }
 
 // module's file operations, a module may need more of these
 static struct file_operations deeds_clock_module_fops = {
 	.owner =	THIS_MODULE,
-	.read =		gen_module_read,
-	.open =		gen_module_open,
-	.release =	gen_module_release,
+	.read =		deeds_clock_module_read,
+	.open =		deeds_clock_module_open,
+	.release =	deeds_clock_module_release,
 };
 
 static struct file_operations deeds_config_module_fops = {
 	.owner =	THIS_MODULE,
-	.write =	gen_module_write,
-	.open =		gen_module_open,
-	.release =	gen_module_release,
+	.read =		deeds_clock_config_module_read,
+	.write =	deeds_clock_config_module_write,
+	.open =		deeds_clock_config_module_open,
+	.release =	deeds_clock_config_module_release,
 };
 
 // initialize module (executed when using insmod)
