@@ -48,6 +48,12 @@ static ssize_t deeds_clock_module_read(struct file *file, char *buf, size_t coun
 // this method is executed when reading from the module
 static ssize_t deeds_clock_config_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
+	int ret;
+	if(!finished_clock_config) {
+		ret = sprintf(buf,"current clock format:%d \n",option);
+		finished_clock_config = 1;
+		return ret;
+	}	
 	return 0;
 }
 
