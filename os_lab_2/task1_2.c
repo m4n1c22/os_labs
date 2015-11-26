@@ -18,7 +18,7 @@ MODULE_LICENSE("GPL");
 
 static struct proc_dir_entry *proc_file_entry,*proc_config_file_entry;
 
-static int finished;
+static int finished_clock,finished_clock_config;
 static int option;
 
 // this method is executed when reading from the module
@@ -31,7 +31,7 @@ static ssize_t deeds_clock_module_read(struct file *file, char *buf, size_t coun
 	do_gettimeofday(&timeval_obj);
 	
 	printk(KERN_INFO "Deeds Clock Module read.\n");
-	if(!finished) {
+	if(!finished_clock) {
 		if(option) {			
 			time_to_tm(get_seconds(),sys_tz.tz_minuteswest * 60, &tm_obj);		
 			ret = sprintf(buf,"current time:%04ld-%02d-%02d %02d:%02d:%02d\n", tm_obj.tm_year + 1900, tm_obj.tm_mon + 1, tm_obj.tm_mday, tm_obj.tm_hour, tm_obj.tm_min, tm_obj.tm_sec);
@@ -39,7 +39,7 @@ static ssize_t deeds_clock_module_read(struct file *file, char *buf, size_t coun
 		else {
 			ret = sprintf(buf,"current time:%ld seconds\n",timeval_obj.tv_sec);
 		}
-		finished = 1;
+		finished_clock = 1;
 		return ret;
 	}	
 	return 0;
@@ -76,7 +76,7 @@ static ssize_t deeds_clock_config_module_write(struct file *file, const char *bu
 static int deeds_clock_module_open(struct inode * inode, struct file * file)
 {
 	printk(KERN_INFO "Deeds Clock Module opened.\n");
-	finished=0;
+	finished_clock=0;
 	return 0;
 }
 
@@ -85,7 +85,7 @@ static int deeds_clock_module_open(struct inode * inode, struct file * file)
 static int deeds_clock_config_module_open(struct inode * inode, struct file * file)
 {
 	printk(KERN_INFO "Deeds Clock config Module opened.\n");
-	finished=0;
+	finished_clock_config=0;
 	return 0;
 }
 
