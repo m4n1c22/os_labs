@@ -1,5 +1,5 @@
 #MACROS
-obj-m := task1_1.o
+obj-m := task1_2.o
 PWD := $(shell pwd)
 KVER := $(shell uname -r)
 

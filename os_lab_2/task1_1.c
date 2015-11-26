@@ -27,7 +27,7 @@ static ssize_t gen_module_read(struct file *file, char *buf, size_t count, loff_
 	
 	printk(KERN_INFO "Task1.1 Module read.\n");
 	if(!finished) {
-		ret += sprintf(buf+ret,"current time:%ld seconds\n",timeval_obj.tv_sec);
+		ret = sprintf(buf,"current time:%ld seconds\n",timeval_obj.tv_sec);
 		finished = 1;
 		return ret;
 	}	
@@ -65,7 +65,6 @@ static int __init gen_module_init(void)
 	proc_file_entry = proc_create(PROC_FILE_NAME,0,NULL,&gen_module_fops);	
 	
 	if(proc_file_entry == NULL) {
-		proc_remove(proc_file_entry);
 		printk(KERN_ALERT "Error: Could not initialize /proc/%s\n",PROC_FILE_NAME);
 		return -ENOMEM;
 	}
