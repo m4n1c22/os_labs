@@ -74,7 +74,7 @@ static ssize_t deeds_clock_config_module_write(struct file *file, const char *bu
 	else {
 		printk(KERN_INFO "Invalid character is written.\n");
 	}
-	return 0;
+	return count;
 }
 
 // this method is called whenever the module is being used
