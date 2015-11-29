@@ -63,16 +63,17 @@ static ssize_t deeds_clock_config_module_write(struct file *file, const char *bu
 {
 	printk(KERN_INFO "Task1.2 Module written.\n");
 	
-	if(strcmp(buf,"1")==0) {
+	if(strncmp(buf,"1",1)==0) {
 		printk(KERN_INFO "1 is written.\n");
 		option = 1;
 	}
-	else if(strcmp(buf,"0")==0) {
+	else if(strncmp(buf,"0",1)==0) {
 		printk(KERN_INFO "0 is written.\n");
 		option = 0;
 	}
 	else {
 		printk(KERN_INFO "Invalid character is written.\n");
+		printk(KERN_INFO "Count:%ld\n", count);
 	}
 	return count;
 }
