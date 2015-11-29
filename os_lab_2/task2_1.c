@@ -18,6 +18,8 @@ MODULE_LICENSE("GPL");
 #define FIFO_DEVICE			"fifo"
 #define FIFO_CONFIG			"fifo_config"
 #define MAJOR_NUM			240
+#define MINOR_NUM_FIFO0		0
+#define MINOR_NUM_FIFO1		1
 #define CLASS_NAME  		"fifo_class"
 static struct proc_dir_entry *fifo_config_file_entry;
 
@@ -142,7 +144,7 @@ static int __init fifo_module_init(void)
    printk(KERN_INFO "FIFO: device class registered correctly\n");
 
    // Register the device driver
-   fifo0 = device_create(fifoClass, NULL, MKDEV(MAJOR_NUM, 0), NULL, FIFO0_DEVICE);
+   fifo0 = device_create(fifoClass, NULL, MKDEV(MAJOR_NUM, MINOR_NUM_FIFO0), NULL, FIFO0_DEVICE);
    if (IS_ERR(fifo0)){               // Clean up if there is an error
       class_destroy(fifoClass);           // Repeated code but the alternative is goto statements
       unregister_chrdev(MAJOR_NUM, FIFO_DEVICE);
@@ -151,7 +153,7 @@ static int __init fifo_module_init(void)
    }
    printk(KERN_INFO "FIFO: device class created correctly\n"); // Made it! device was initialized
 
-   fifo1 = device_create(fifoClass, NULL, MKDEV(MAJOR_NUM, 1), NULL, FIFO1_DEVICE);
+   fifo1 = device_create(fifoClass, NULL, MKDEV(MAJOR_NUM, MINOR_NUM_FIFO1), NULL, FIFO1_DEVICE);
    if (IS_ERR(fifo1)){               // Clean up if there is an error
       class_destroy(fifoClass);           // Repeated code but the alternative is goto statements
       unregister_chrdev(MAJOR_NUM, FIFO_DEVICE);
@@ -171,9 +173,9 @@ static void __exit fifo_module_cleanup(void)
 	proc_remove(fifo_config_file_entry);
 	
 	// remove the device
-	device_destroy(fifoClass, MKDEV(MAJOR_NUM, 0));
+	device_destroy(fifoClass, MKDEV(MAJOR_NUM, MINOR_NUM_FIFO0));
 	// remove the device
-	device_destroy(fifoClass, MKDEV(MAJOR_NUM, 1));     
+	device_destroy(fifoClass, MKDEV(MAJOR_NUM, MINOR_NUM_FIFO1));     
 	// unregister the device class
 	class_unregister(fifoClass);                          
 	// remove the device class
