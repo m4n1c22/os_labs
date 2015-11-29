@@ -21,12 +21,15 @@ MODULE_LICENSE("GPL");
 #define MINOR_NUM_FIFO0		0
 #define MINOR_NUM_FIFO1		1
 #define CLASS_NAME  		"fifo_class"
+
+#define IS_MINOR(A,B)	    (A==B)
 static struct proc_dir_entry *fifo_config_file_entry;
 
 static struct class*  fifoClass  = NULL; 
 static struct device* fifo0 = NULL; 
 static struct device* fifo1 = NULL;
 
+static int minorNumber;
 
 static int finished_config;
 static int majorNumber;
@@ -34,6 +37,12 @@ static int majorNumber;
 static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
 	printk(KERN_INFO "Fifo module is being read.\n");
+	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO0)) {
+		printk(KERN_INFO "Fifo module is being read.\n");	
+	}
+	else {
+		printk(KERN_INFO "Fifo module not allowed to be read.\n");
+	}
 	return 0;
 }
 
@@ -51,6 +60,7 @@ static int fifo_module_open(struct inode * inode, struct file * file)
 {
 	printk(KERN_INFO "Fifo module is being opened.\n");
 	printk(KERN_INFO "Fifo %d module is being opened.\n",iminor(inode));
+	minorNumber = iminor(inode);
 	return 0;
 }
 
