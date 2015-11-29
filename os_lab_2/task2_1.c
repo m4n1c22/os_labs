@@ -29,7 +29,7 @@ static struct class*  fifoClass  = NULL;
 static struct device* fifo0 = NULL; 
 static struct device* fifo1 = NULL;
 
-static char *msg;
+static char *queue;
 
 static int mem_alloc_size=8;
 
@@ -50,7 +50,7 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 		
 		printk(KERN_INFO "Fifo module is being read.\n");	
 		if(!finished_fifo) {
-			ret = sprintf(buf,msg);
+			ret = sprintf(buf,queue);
 			if(ret <0) {
 				return -ENOMEM;
 			}
@@ -61,7 +61,7 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 	else {
 		printk(KERN_INFO "Fifo module not allowed to be read.\n");
 	}
-	msg[0] = '\0';
+	queue[0] = '\0';
 	return 0;
 }
 
@@ -72,8 +72,8 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 	printk(KERN_INFO "Fifo module is being written.\n");
 	
 	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO0)) {
-		if((strlen(buf)+strlen(msg))<=mem_alloc_size) {
-			ret = sprintf((msg+strlen(msg)),buf);
+		if((strlen(buf)+strlen(queue))<=mem_alloc_size) {
+			ret = sprintf((queue+strlen(queue)),buf);
 			if(ret<0) {
 				return -ENOMEM;
 			}
@@ -120,7 +120,7 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 	printk(KERN_INFO "Fifo config module is being read.\n");
 	if(!finished_config){
 		finished_config = 1;
-		ret = sprintf(buf,"Allocated Size: %d \n Free Size: %d Total Size: %d",strlen(msg),mem_alloc_size-strlen(msg),mem_alloc_size);
+		ret = sprintf(buf,"Allocated Size: %d\nFree Size: %d\nTotal Size: %d\n",strlen(queue),mem_alloc_size-strlen(queue),mem_alloc_size);
 		return ret;
 	}
 	return 0;
@@ -130,13 +130,25 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 static ssize_t fifo_config_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
 	long int res;
+	int ret;
 	printk(KERN_INFO "Fifo config module is being written.\n");
-	if(strlen(msg)) {
+	if(strlen(queue)) {
 		printk(KERN_ERR "Fifo config module cannot be written.\n");
 		return -ENOMEM;
+	}	
+	ret = kstrtol(buf,10,&res);
+	if(ret <0) {
+		return -1;
 	}
-	kstrtol(buf,10,&res);
-	queueAlloc(res);
+	if(res >=4 && res <= 4096) {
+		if(queueAlloc(res)!=0) {
+			return -ENOMEM;
+		}
+	}
+	else {
+		printk(KERN_ERR "Fifo Queue cannot be allocated.\n");
+		return -ENOMEM;
+	}
 	return count;
 }
 
@@ -221,12 +233,12 @@ static int __init fifo_module_init(void)
    printk(KERN_INFO "FIFO: device class created correctly\n"); // Made it! device was initialized
 
 
-   msg = kmalloc(mem_alloc_size,GFP_KERNEL);
-   if(!msg) {
+   queue = kmalloc(mem_alloc_size,GFP_KERNEL);
+   if(!queue) {
 		printk(KERN_ERR "Memory allocation problem.\n");
 		return -ENOMEM;
    }
-   msg[0] = '\0';
+   queue[0] = '\0';
 	
    return 0;
 }
@@ -250,22 +262,24 @@ static void __exit fifo_module_cleanup(void)
 	unregister_chrdev(MAJOR_NUM, FIFO_DEVICE);
 	
 	//deallocating queue
-	kfree(msg);
+	kfree(queue);
 
 }
 
 int queueAlloc(int mem_size) {
 	
 	mem_alloc_size = mem_size;
-	if(msg) {
-		kfree(msg);
+	if(queue) {
+		kfree(queue);
 	}
-	msg = kmalloc(mem_alloc_size,GFP_KERNEL);
-	if(!msg) {
+	
+	queue = kmalloc(mem_alloc_size,GFP_KERNEL);
+	if(!queue) {
 		printk(KERN_ERR "Memory allocation problem.\n");
 		return -ENOMEM;
 	}
-	msg[0] = '\0';
+	queue[0] = '\0';
+	return 0;
 }
 module_init(fifo_module_init);
 module_exit(fifo_module_cleanup);
