@@ -3,7 +3,6 @@
 import threading
 import shutil
 import sys
-import itertools
 
 def read_time():
 	print "read_time"
