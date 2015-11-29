@@ -4,19 +4,62 @@
 #include <linux/fs.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
+#include <linux/device.h> 
+#include <asm/uaccess.h>
+#include <linux/kernel.h>
 
 MODULE_AUTHOR("Sreeram Sadasivam");
 MODULE_DESCRIPTION("Lab Solution Task 2.1");
 MODULE_LICENSE("GPL");
 
 //Macros
-#define FIFO_RDONLY_DEVICE		"/dev/fifo0"
-#define FIFO_WTONLY_DEVICE		"/dev/fifo1"
-#define FIFO_CONFIG				"fifo_config"
-
+#define FIFO0_DEVICE		"fifo0"
+#define FIFO1_DEVICE		"fifo1"
+#define FIFO_DEVICE			"fifo"
+#define FIFO_CONFIG			"fifo_config"
+#define MAJOR_NUM			240
+#define CLASS_NAME  		"fifo_class"
 static struct proc_dir_entry *fifo_config_file_entry;
 
+static struct class*  fifoClass  = NULL; 
+static struct device* fifo0 = NULL; 
+static struct device* fifo1 = NULL;
+
+
 static int finished_config;
+static int majorNumber;
+// this method is executed when reading from the module
+static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
+{
+	printk(KERN_INFO "Fifo module is being read.\n");
+	return 0;
+}
+
+// this method is executed when writing to the module
+static ssize_t fifo_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
+{
+	printk(KERN_INFO "Fifo module is being written.\n");
+	return count;
+}
+
+
+// this method is called whenever the module is being used
+// e.g. for both read and write operations
+static int fifo_module_open(struct inode * inode, struct file * file)
+{
+	printk(KERN_INFO "Fifo module is being opened.\n");
+	printk(KERN_INFO "Fifo %d module is being opened.\n",iminor(inode));
+	return 0;
+}
+
+// this method releases the module and makes it available for new operations
+static int fifo_module_release(struct inode * inode, struct file * file)
+{
+	printk(KERN_INFO "Fifo module is being released.\n");
+	return 0;
+}
+
+
 
 // this method is executed when reading from the module
 static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
@@ -61,6 +104,13 @@ static struct file_operations fifo_config_module_fops = {
 	.open =		fifo_config_module_open,
 	.release =	fifo_config_module_release,
 };
+static struct file_operations fifo_module_fops = {
+	.owner =	THIS_MODULE,
+	.read =		fifo_module_read,
+	.write =	fifo_module_write,
+	.open =		fifo_module_open,
+	.release =	fifo_module_release,
+};
 
 // initialize module (executed when using insmod)
 static int __init fifo_module_init(void)
@@ -72,14 +122,65 @@ static int __init fifo_module_init(void)
 		printk(KERN_ALERT "Error: Could not initialize /proc/%s\n",FIFO_CONFIG);
 		return -ENOMEM;
 	}
+	
+	// Register the character device (atleast try) 
+	majorNumber = register_chrdev(MAJOR_NUM, FIFO_DEVICE, &fifo_module_fops);
+	if (majorNumber < 0) {
+		printk(KERN_ALERT "%s failed with %d\n",
+		       "Sorry, registering the character device ", MAJOR_NUM);
+		return majorNumber;
+	}
+	printk(KERN_INFO "FIFO: registered correctly with major number %d\n", MAJOR_NUM);
+
+   // Register the device class
+   fifoClass = class_create(THIS_MODULE, CLASS_NAME);
+   if (IS_ERR(fifoClass)){                // Check for error and clean up if there is
+      unregister_chrdev(MAJOR_NUM, FIFO_DEVICE);
+      printk(KERN_ALERT "Failed to register device class\n");
+      return PTR_ERR(fifoClass);          // Correct way to return an error on a pointer
+   }
+   printk(KERN_INFO "FIFO: device class registered correctly\n");
+
+   // Register the device driver
+   fifo0 = device_create(fifoClass, NULL, MKDEV(MAJOR_NUM, 0), NULL, FIFO0_DEVICE);
+   if (IS_ERR(fifo0)){               // Clean up if there is an error
+      class_destroy(fifoClass);           // Repeated code but the alternative is goto statements
+      unregister_chrdev(MAJOR_NUM, FIFO_DEVICE);
+      printk(KERN_ALERT "Failed to create the device\n");
+      return PTR_ERR(fifo0);
+   }
+   printk(KERN_INFO "FIFO: device class created correctly\n"); // Made it! device was initialized
+
+   fifo1 = device_create(fifoClass, NULL, MKDEV(MAJOR_NUM, 1), NULL, FIFO1_DEVICE);
+   if (IS_ERR(fifo1)){               // Clean up if there is an error
+      class_destroy(fifoClass);           // Repeated code but the alternative is goto statements
+      unregister_chrdev(MAJOR_NUM, FIFO_DEVICE);
+      printk(KERN_ALERT "Failed to create the device\n");
+      return PTR_ERR(fifo1);
+   }
+   printk(KERN_INFO "FIFO: device class created correctly\n"); // Made it! device was initialized
+
 	return 0;
 }
 
 // cleanup module (executed when using rmmod)
 static void __exit fifo_module_cleanup(void)
 {
+	
 	printk(KERN_INFO "FIFO module is being unloaded.\n");
 	proc_remove(fifo_config_file_entry);
+	
+	// remove the device
+	device_destroy(fifoClass, MKDEV(MAJOR_NUM, 0));
+	// remove the device
+	device_destroy(fifoClass, MKDEV(MAJOR_NUM, 1));     
+	// unregister the device class
+	class_unregister(fifoClass);                          
+	// remove the device class
+	class_destroy(fifoClass);                             
+	//Unregister the device 
+	unregister_chrdev(MAJOR_NUM, FIFO_DEVICE);
+
 }
 
 module_init(fifo_module_init);
