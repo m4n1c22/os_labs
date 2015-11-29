@@ -69,7 +69,7 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 	printk(KERN_INFO "Fifo module is being written.\n");
 	
 	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO0)) {
-		if(strlen(buf)<=mem_alloc_size) {
+		if((strlen(buf)+strlen(msg))<=mem_alloc_size) {
 			ret = sprintf(msg,buf);
 			if(ret<0) {
 				return -ENOMEM;
