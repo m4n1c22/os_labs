@@ -31,12 +31,15 @@ static struct device* fifo1 = NULL;
 
 static char *msg;
 
-static int mem_alloc_size=10;
+static int mem_alloc_size=8;
 
 static int minorNumber;
 
 static int finished_config,finished_fifo;
 static int majorNumber;
+
+int queueAlloc(int mem_size);
+
 // this method is executed when reading from the module
 static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
@@ -70,7 +73,7 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 	
 	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO0)) {
 		if((strlen(buf)+strlen(msg))<=mem_alloc_size) {
-			ret = sprintf(msg,buf);
+			ret = sprintf((msg+strlen(msg)),buf);
 			if(ret<0) {
 				return -ENOMEM;
 			}
@@ -117,6 +120,7 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 	printk(KERN_INFO "Fifo config module is being read.\n");
 	if(!finished_config){
 		finished_config = 1;
+		ret = sprintf(buf,"Allocated Size: %d \n Free Size: %d Total Size: %d",strlen(msg),mem_alloc_size-strlen(msg),mem_alloc_size);
 		return ret;
 	}
 	return 0;
@@ -125,7 +129,14 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 // this method is executed when writing to the module
 static ssize_t fifo_config_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
+	long int res;
 	printk(KERN_INFO "Fifo config module is being written.\n");
+	if(strlen(msg)) {
+		printk(KERN_ERR "Fifo config module cannot be written.\n");
+		return -ENOMEM;
+	}
+	kstrtol(buf,10,&res);
+	queueAlloc(res);
 	return count;
 }
 
@@ -243,5 +254,18 @@ static void __exit fifo_module_cleanup(void)
 
 }
 
+int queueAlloc(int mem_size) {
+	
+	mem_alloc_size = mem_size;
+	if(msg) {
+		kfree(msg);
+	}
+	msg = kmalloc(mem_alloc_size,GFP_KERNEL);
+	if(!msg) {
+		printk(KERN_ERR "Memory allocation problem.\n");
+		return -ENOMEM;
+	}
+	msg[0] = '\0';
+}
 module_init(fifo_module_init);
 module_exit(fifo_module_cleanup);
