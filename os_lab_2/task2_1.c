@@ -43,7 +43,7 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 	int ret;
 	printk(KERN_INFO "Fifo module is being read.\n");
 	
-	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO0)) {
+	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO1)) {
 		
 		printk(KERN_INFO "Fifo module is being read.\n");	
 		if(!finished_fifo) {
@@ -68,7 +68,7 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 	int ret;
 	printk(KERN_INFO "Fifo module is being written.\n");
 	
-	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO1)) {
+	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO0)) {
 		if(strlen(buf)<=mem_alloc_size) {
 			ret = sprintf(msg,buf);
 			if(ret<0) {
