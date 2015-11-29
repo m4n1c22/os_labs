@@ -2,11 +2,11 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/time.h>
 #include <linux/proc_fs.h>
 #include <linux/device.h> 
 #include <asm/uaccess.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 MODULE_AUTHOR("Sreeram Sadasivam");
 MODULE_DESCRIPTION("Lab Solution Task 2.1");
@@ -29,27 +29,61 @@ static struct class*  fifoClass  = NULL;
 static struct device* fifo0 = NULL; 
 static struct device* fifo1 = NULL;
 
+static char *msg;
+
+static int mem_alloc_size=10;
+
 static int minorNumber;
 
-static int finished_config;
+static int finished_config,finished_fifo;
 static int majorNumber;
 // this method is executed when reading from the module
 static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
+	int ret;
 	printk(KERN_INFO "Fifo module is being read.\n");
+	
 	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO0)) {
+		
 		printk(KERN_INFO "Fifo module is being read.\n");	
+		if(!finished_fifo) {
+			ret = sprintf(buf,msg);
+			if(ret <0) {
+				return -ENOMEM;
+			}
+			finished_fifo = 1;
+			return ret;
+		}
 	}
 	else {
 		printk(KERN_INFO "Fifo module not allowed to be read.\n");
 	}
+	msg[0] = '\0';
 	return 0;
 }
 
 // this method is executed when writing to the module
 static ssize_t fifo_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
+	int ret;
 	printk(KERN_INFO "Fifo module is being written.\n");
+	
+	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO1)) {
+		if(strlen(buf)<=10) {
+			ret = sprintf(msg,buf);
+			if(ret<0) {
+				return -ENOMEM;
+			}
+		}
+		else {
+			printk(KERN_ERR "Fifo module in overflow state.\n");
+			return -ENOMEM;
+		}
+	}
+	else {
+		return -1;
+	}
+	
 	return count;
 }
 
@@ -61,6 +95,9 @@ static int fifo_module_open(struct inode * inode, struct file * file)
 	printk(KERN_INFO "Fifo module is being opened.\n");
 	printk(KERN_INFO "Fifo %d module is being opened.\n",iminor(inode));
 	minorNumber = iminor(inode);
+	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO0)) {
+		finished_fifo = 0;
+	}
 	return 0;
 }
 
@@ -172,7 +209,15 @@ static int __init fifo_module_init(void)
    }
    printk(KERN_INFO "FIFO: device class created correctly\n"); // Made it! device was initialized
 
-	return 0;
+
+   msg = kmalloc(mem_alloc_size,GFP_KERNEL);
+   if(!msg) {
+		printk(KERN_ERR "Memory allocation problem.\n");
+		return -ENOMEM;
+   }
+   msg[0] = '\0';
+	
+   return 0;
 }
 
 // cleanup module (executed when using rmmod)
@@ -192,6 +237,9 @@ static void __exit fifo_module_cleanup(void)
 	class_destroy(fifoClass);                             
 	//Unregister the device 
 	unregister_chrdev(MAJOR_NUM, FIFO_DEVICE);
+	
+	//deallocating queue
+	kfree(msg);
 
 }
 
