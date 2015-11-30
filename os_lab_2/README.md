@@ -21,13 +21,9 @@ Thus, compiling all tasks.
 ######Steps to run Task 1.2
  - ```make```
  - ```sudo insmod task1_2.ko```
- - ```echo "1" > /proc/deeds_clock_config or``` 
-   ```cat>/proc/deeds_clock_config ```
-   ```1 ctrl+D```
+ - ```echo "1" > /proc/deeds_clock_config or cat>/proc/deeds_clock_config 1 ctrl+D```
  - ```cat /proc/deeds_clock```
- - ```echo "0" > /proc/deeds_clock_config or```
-   ```cat>/proc/deeds_clock_config```
-   ```0 ctrl+D```
+ - ```echo "0" > /proc/deeds_clock_config or cat>/proc/deeds_clock_config 0 ctrl+D```
 
 ######Steps to Run Task 2.1
  - ```make```
