@@ -1,0 +1,2 @@
+Whenever User gives input as "1", format of the Time dispalyed to User will be changed. If User gives any junk value other than ) and 1,
+then an Error will be thrown. There is no change If we read the clock time by changing output format multiple times.
