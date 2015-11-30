@@ -55,10 +55,12 @@ int queueAlloc(int mem_size);
 static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
-	printk(KERN_INFO "Fifo module is being read.\n");
 	
 	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO1)) {
-		
+		if(!strlen(queue)) {
+			printk(KERN_ERR "Fifo module cannot be read -> Underflow state.\n");	
+			return -ENOMEM;
+		}
 		printk(KERN_INFO "Fifo module is being read.\n");	
 		if(!finished_fifo) {
 			ret = sprintf(buf,queue);
