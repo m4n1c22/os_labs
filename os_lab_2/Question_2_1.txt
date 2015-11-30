@@ -1,4 +1,4 @@
 After running for several times, we were able to find out the following:
   i.  If 2 processes try to modify buffer size parallely, the process which modifies the buffer size last, that value will be stored i.e It will overwrite the previous buffer size value. We observed no errors if 2 processes are trying to modify the buffer size parallely.
   ii. While two process trying to change the buffer size and read the buffer parallely, there will be errors. As driver will be sometimes busy in modifying the buffer size or sometimes reading the buffer.
-   iii. Output will not always be same.
+  iii. Output will not always be same.
