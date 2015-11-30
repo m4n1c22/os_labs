@@ -19,28 +19,28 @@ MODULE_LICENSE("GPL");
 
 /** STANDARD MACROS */
 
-#define BASE_10				10
-#define END_OF_BUFF				'\0'
+#define BASE_10             10
+#define END_OF_BUFF         '\0'
 
 /** MEMORY ALLOCATION RELATED MACROS */
 
-#define LOWER_LIMIT			4
-#define UPPER_LIMIT			4096
-#define DEFAULT_MEM_SIZE	8
+#define LOWER_LIMIT         4
+#define UPPER_LIMIT         4096
+#define DEFAULT_MEM_SIZE    8
 
-#define IN_RANGE(MEM)		((MEM>=LOWER_LIMIT)&&(MEM<=UPPER_LIMIT))
+#define IN_RANGE(MEM)       ((MEM>=LOWER_LIMIT)&&(MEM<=UPPER_LIMIT))
 
 /** DEVICE RELATED Macros */
 
-#define FIFO0_DEVICE		"fifo0"
-#define FIFO1_DEVICE		"fifo1"
-#define FIFO_DEVICE			"fifo"
-#define FIFO_CONFIG			"fifo_config"
-#define MAJOR_NUM			240
-#define MINOR_NUM_FIFO0		0
-#define MINOR_NUM_FIFO1		1
-#define CLASS_NAME  		"fifo_class"
-#define IS_MINOR(A,B)	    (A==B)
+#define FIFO0_DEVICE        "fifo0"
+#define FIFO1_DEVICE        "fifo1"
+#define FIFO_DEVICE         "fifo"
+#define FIFO_CONFIG         "fifo_config"
+#define MAJOR_NUM           240
+#define MINOR_NUM_FIFO0     0
+#define MINOR_NUM_FIFO1     1
+#define CLASS_NAME          "fifo_class"
+#define IS_MINOR(A,B)       (A==B)
 
 /** Proc FS File Object */
 static struct proc_dir_entry *fifo_config_file_entry;
@@ -71,39 +71,39 @@ int queueAlloc(int mem_size);
 
 /**
 	Function Name : fifo_module_read
-	Function Type :	Kernel Callback Method
-	Description	  : Method is invoked whenever the fifo device files are
-					read. This callback method is triggered when a read 
-					operation performed on the devices register to this 
-					file operation object.
-					FIFO Devices are allocated with one device being 
-					read only(FIFO1) and other being write only(FIFO0).				
+	Function Type : Kernel Callback Method
+	Description   : Method is invoked whenever the fifo device files are
+                    read. This callback method is triggered when a read 
+                    operation performed on the devices register to this 
+                    file operation object.
+                    FIFO Devices are allocated with one device being 
+                    read only(FIFO1) and other being write only(FIFO0).				
 */
 static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
 	
-	/** Condition to check if the device accessed is FIFO1 or not */
+    /** Condition to check if the device accessed is FIFO1 or not */
 	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO1)) {
 		
-		/** 
-			Condition to check if the FIFO Queue is empty or in 
-			underflow state
-		*/
+        /** 
+            Condition to check if the FIFO Queue is empty or in 
+            underflow state
+        */
 		if(!strlen(queue)) {
 			printk(KERN_ALERT "FIFO ERROR:Fifo module cannot be read -> Underflow state.\n");	
 			
-			/** Erroneous Data */
+            /** Erroneous Data */
 			return -ENODATA;
 		}
 		
 		printk(KERN_INFO "FIFO:Fifo module is being read.\n");	
 		
-		/** Condition to check if EOF is reached. */
+        /** Condition to check if EOF is reached. */
 		if(!finished_fifo) {
 			ret = sprintf(buf,queue);
 			if(ret <0) {
-				/** Memory allocation problem */
+                /** Memory allocation problem */
 				return -ENOMEM;
 			}
 			/** Flag set to Completed marking EOF.*/
@@ -129,13 +129,13 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 
 /**
 	Function Name : fifo_module_write
-	Function Type :	Kernel Callback Method
-	Description	  :	Method is invoked whenever the fifo device files are
-					written. This callback method is triggered when a 
-					write operation performed on the devices register to
-					this file operation object.
-					FIFO Devices are allocated with one device being 
-					read only(FIFO1) and other being write only(FIFO0).				
+	Function Type : Kernel Callback Method
+	Description   : Method is invoked whenever the fifo device files are
+                    written. This callback method is triggered when a 
+                    write operation performed on the devices register to
+                    this file operation object.
+                    FIFO Devices are allocated with one device being 
+                    read only(FIFO1) and other being write only(FIFO0).				
 */
 static ssize_t fifo_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
@@ -144,10 +144,10 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 	/** Condition to check if the device accessed is FIFO0 or not */
 	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO0)) {
 		
-		/**
-			Condition to check if the allocation is exceeded. To check
-			Overflow state is achieved.	
-		*/
+        /**
+            Condition to check if the allocation is exceeded. To check
+            Overflow state is achieved.	
+        */
 		if((strlen(buf)+strlen(queue))<=mem_alloc_size) {
 			
 			ret = sprintf((queue+strlen(queue)),buf);
@@ -178,16 +178,16 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 
 
 /**
-	Function Name :	fifo_module_open
-	Function Type :	Kernel Callback Method
-	Description	  : Method is invoked whenever the fifo device files are
-					opened. This callback method is triggered when an 
-					open operation performed on the devices register to 
-					this file operation object. The open system call is 
-					invoked whenever an operation of read/write is 
-					performed on the device.
-					FIFO Devices are allocated with one device being 
-					read only(FIFO1) and other being write only(FIFO0).				
+	Function Name : fifo_module_open
+	Function Type : Kernel Callback Method
+	Description   : Method is invoked whenever the fifo device files are
+                    opened. This callback method is triggered when an 
+                    open operation performed on the devices register to 
+                    this file operation object. The open system call is 
+                    invoked whenever an operation of read/write is 
+                    performed on the device.
+                    FIFO Devices are allocated with one device being 
+                    read only(FIFO1) and other being write only(FIFO0).				
 */
 static int fifo_module_open(struct inode * inode, struct file * file)
 {
@@ -196,22 +196,22 @@ static int fifo_module_open(struct inode * inode, struct file * file)
 		/** Device Busy Error */
 		return -EBUSY;
 	}
-	/** 
-		Increment and using the device_open variable as a 
-		synchronization mechanism.
-	*/
+    /** 
+        Increment and using the device_open variable as a 
+        synchronization mechanism.
+    */
 	device_open++;
 	printk(KERN_INFO "FIFO ERROR:Fifo %d module is being opened.\n",iminor(inode));
-	/**
-		Retrieving the Minor Number for the figuring out the device
-		which is accessed on each operations.
-	*/
+    /**
+        Retrieving the Minor Number for the figuring out the device
+        which is accessed on each operations.
+    */
 	minorNumber = iminor(inode);
 	
-	/** 
-		Condition check for knowing if the device opened 
-		is FIFO1 or not.
-	*/
+    /** 
+        Condition check for knowing if the device opened 
+        is FIFO1 or not.
+    */
 	if(IS_MINOR(minorNumber,MINOR_NUM_FIFO1)) {
 		
 		/** Finished flag set to false indicating file is just opened.*/
@@ -223,20 +223,20 @@ static int fifo_module_open(struct inode * inode, struct file * file)
 
 /**
 	Function Name : fifo_module_release
-	Function Type :	Kernel Callback Method
-	Description	  :	Method is invoked whenever the fifo device files are
-					closed. This callback method is triggered when a 
-					close operation performed on the devices register to
-					this file operation object.
-					FIFO Devices are allocated with one device being 
-					read only(FIFO1) and other being write only(FIFO0).				
+	Function Type : Kernel Callback Method
+	Description   : Method is invoked whenever the fifo device files are
+                    closed. This callback method is triggered when a 
+                    close operation performed on the devices register to
+                    this file operation object.
+                    FIFO Devices are allocated with one device being 
+                    read only(FIFO1) and other being write only(FIFO0).				
 */
 static int fifo_module_release(struct inode * inode, struct file * file)
 {
-	/** 
-		Decrement and using the device_open variable as a 
-		synchronization mechanism.
-	*/
+    /** 
+        Decrement and using the device_open variable as a 
+        synchronization mechanism.
+    */
 	device_open--;
 	printk(KERN_INFO "FIFO:Fifo module is being released.\n");
 	
@@ -247,15 +247,15 @@ static int fifo_module_release(struct inode * inode, struct file * file)
 
 /**
 	Function Name : fifo_config_module_read
-	Function Type :	Kernel Callback Method
-	Description	  :	Method is invoked whenever the fifo_config file is 
-					read. This callback method is triggered when a read 
-					operation performed on the /proc/fifo_config.
-					The /proc/fifo_config contains the information about
-					the memory info	of the FIFO Queue. Such as allocated
-					size, free size and total size.	The fifo_config is a
-					RD/WR file. But can only be written if the queue is 
-					not in use.
+	Function Type : Kernel Callback Method
+	Description   : Method is invoked whenever the fifo_config file is 
+                    read. This callback method is triggered when a read 
+                    operation performed on the /proc/fifo_config.
+                    The /proc/fifo_config contains the information about
+                    the memory info	of the FIFO Queue. Such as allocated
+                    size, free size and total size.	The fifo_config is a
+                    RD/WR file. But can only be written if the queue is 
+                    not in use.
 */
 static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
@@ -280,16 +280,16 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 }
 
 /**
-	Function Name:  fifo_config_module_write
-	Function Type: 	Kernel Callback Method
-	Description	 :	Method is invoked whenever the fifo_config file is 
-					written. This callback method is triggered when a 
-					write operation performed on the /proc/fifo_config.
-					The /proc/fifo_config contains the information 
-					about the memory info of the FIFO Queue. Such as 
-					allocated size, free size and total size. The 
-					fifo_config is a RD/WR file. But can only be written
-					if the queue is not in use.
+	Function Name : fifo_config_module_write
+	Function Type : Kernel Callback Method
+	Description   : Method is invoked whenever the fifo_config file is 
+                    written. This callback method is triggered when a 
+                    write operation performed on the /proc/fifo_config.
+                    The /proc/fifo_config contains the information 
+                    about the memory info of the FIFO Queue. Such as 
+                    allocated size, free size and total size. The 
+                    fifo_config is a RD/WR file. But can only be written
+                    if the queue is not in use.
 */
 static ssize_t fifo_config_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
@@ -297,7 +297,7 @@ static ssize_t fifo_config_module_write(struct file *file, const char *buf, size
 	int ret;
 	printk(KERN_INFO "FIFO:Fifo config module is being written.\n");
 	
-	/** condition to check if queue in use or not.*/
+	/** Condition to check if queue in use or not.*/
 	if(strlen(queue)) {		
 		printk(KERN_ALERT "FIFO ERROR:Fifo config module cannot be written.\n");
 		
@@ -314,10 +314,10 @@ static ssize_t fifo_config_module_write(struct file *file, const char *buf, size
 	
 	/** Condition to check if the allocation is with in the limits.*/
 	if(IN_RANGE(res)) {
-		/** 
-			Condition to check if the queue allocation encountered any
-			problems.
-		*/
+        /** 
+            Condition to check if the queue allocation encountered any
+            problems.
+        */
 		if(queueAlloc(res)!=0) {
 			/** Memory allocation problem */
 			return -ENOMEM;
@@ -333,18 +333,18 @@ static ssize_t fifo_config_module_write(struct file *file, const char *buf, size
 }
 
 /**
-	Function Name:	fifo_config_module_open
-	Function Type: 	Kernel Callback Method
-	Description	 :	Method is invoked whenever the fifo_config file is 
-					opened. This callback method is triggered when an 
-					open operation performed on the	/proc/fifo_config. 
-					This can be triggered on calls for read/write 
-					operations on /proc/fifo_config file.
-					The /proc/fifo_config contains the information about
-					the memory info	of the FIFO Queue. Such as allocated
-					size, free size and total size.	The fifo_config is a
-					RD/WR file. But can only be written if the queue is 
-					not in use.
+	Function Name : fifo_config_module_open
+	Function Type : Kernel Callback Method
+	Description   : Method is invoked whenever the fifo_config file is 
+                    opened. This callback method is triggered when an 
+                    open operation performed on the	/proc/fifo_config. 
+                    This can be triggered on calls for read/write 
+                    operations on /proc/fifo_config file.
+                    The /proc/fifo_config contains the information about
+                    the memory info	of the FIFO Queue. Such as allocated
+                    size, free size and total size.	The fifo_config is a
+                    RD/WR file. But can only be written if the queue is 
+                    not in use.
 */
 static int fifo_config_module_open(struct inode * inode, struct file * file)
 {
@@ -357,18 +357,18 @@ static int fifo_config_module_open(struct inode * inode, struct file * file)
 }
 
 /**
-	Function Name:  fifo_config_module_release
-	Function Type: 	Kernel Callback Method
-	Description  :	Method is invoked whenever the fifo_config file is 
-					closed. This callback method is triggered when a 
-					close operation performed on the /proc/fifo_config. 
-					This can be triggered on calls for read/write 
-					operations on /proc/fifo_config file.
-					The /proc/fifo_config contains the information about
-					the memory info	of the FIFO Queue. Such as allocated
-					size, free size and total size.	The fifo_config is a
-					RD/WR file. But can only be written if the queue is 
-					not in use.
+	Function Name : fifo_config_module_release
+	Function Type : Kernel Callback Method
+	Description   : Method is invoked whenever the fifo_config file is 
+                    closed. This callback method is triggered when a 
+                    close operation performed on the /proc/fifo_config. 
+                    This can be triggered on calls for read/write 
+                    operations on /proc/fifo_config file.
+                    The /proc/fifo_config contains the information about
+                    the memory info	of the FIFO Queue. Such as allocated
+                    size, free size and total size.	The fifo_config is a
+                    RD/WR file. But can only be written if the queue is 
+                    not in use.
 */
 static int fifo_config_module_release(struct inode * inode, struct file * file)
 {
@@ -378,33 +378,33 @@ static int fifo_config_module_release(struct inode * inode, struct file * file)
 }
 
 /**
-	File Operations for handling the /proc/fifo_config file accesses.
+    File Operations for handling the /proc/fifo_config file accesses.
 */
 static struct file_operations fifo_config_module_fops = {
-	.owner =	THIS_MODULE,
-	.read =		fifo_config_module_read,
-	.write =	fifo_config_module_write,
-	.open =		fifo_config_module_open,
-	.release =	fifo_config_module_release,
+    .owner =	THIS_MODULE,
+    .read =		fifo_config_module_read,
+    .write =	fifo_config_module_write,
+    .open =		fifo_config_module_open,
+    .release =	fifo_config_module_release,
 };
 
 /**
-	File Operations for handling the fifo devices file accesses.
+    File Operations for handling the fifo devices file accesses.
 */
 static struct file_operations fifo_module_fops = {
-	.owner =	THIS_MODULE,
-	.read =		fifo_module_read,
-	.write =	fifo_module_write,
-	.open =		fifo_module_open,
-	.release =	fifo_module_release,
+    .owner =	THIS_MODULE,
+    .read =		fifo_module_read,
+    .write =	fifo_module_write,
+    .open =		fifo_module_open,
+    .release =	fifo_module_release,
 };
 
 /**
-	Function Name :	fifo_module_init
+	Function Name : fifo_module_init
 	Function Type : Module INIT
-	Description	  : Initialization method of the Kernel module. The
-					method gets invoked when the kernel module is being
-					inserted using the command insmod.
+	Description   : Initialization method of the Kernel module. The
+                    method gets invoked when the kernel module is being
+                    inserted using the command insmod.
 */
 static int __init fifo_module_init(void)
 {	
@@ -421,10 +421,10 @@ static int __init fifo_module_init(void)
 		return -ENOMEM;
 	}
 	
-	/** 
-		Registering the Device with a major number as 240 and
-		configuring the file operations associated with it.
-	*/
+    /** 
+        Registering the Device with a major number as 240 and
+        configuring the file operations associated with it.
+    */
 	ret = register_chrdev(MAJOR_NUM, FIFO_DEVICE, &fifo_module_fops);
 	
 	/** Condition code to check if the registration was successful.*/
@@ -450,10 +450,10 @@ static int __init fifo_module_init(void)
 	}
 	printk(KERN_INFO "FIFO: device class registered correctly\n");
 
-	/** 
-		Registering the device driver for the provided device class. The
-		device driver is associated with fifo0 with minor number as 0.
-	*/
+    /** 
+        Registering the device driver for the provided device class. The
+        device driver is associated with fifo0 with minor number as 0.
+    */
 	fifo0 = device_create(fifoClass, NULL, MKDEV(MAJOR_NUM, MINOR_NUM_FIFO0), NULL, FIFO0_DEVICE);
    
 	/** Condition for error verification during driver creation.*/
@@ -469,9 +469,9 @@ static int __init fifo_module_init(void)
 	}
 	printk(KERN_INFO "FIFO:device class created correctly\n");
 
-	/** 
-		Registering the device driver for the provided device class. The
-		device driver is associated with fifo1 with minor number as 1.
+    /** 
+        Registering the device driver for the provided device class. The
+        device driver is associated with fifo1 with minor number as 1.
 	*/
 	fifo1 = device_create(fifoClass, NULL, MKDEV(MAJOR_NUM, MINOR_NUM_FIFO1), NULL, FIFO1_DEVICE);
    
@@ -511,11 +511,11 @@ static int __init fifo_module_init(void)
 }
 
 /**
-	Function Name :	fifo_module_cleanup
+	Function Name : fifo_module_cleanup
 	Function Type : Module EXIT
-	Description	  : Cleanup method of the Kernel module. The
-					method gets invoked when the kernel module is being
-					removed using the command rmmod.
+	Description   : Cleanup method of the Kernel module. The
+                    method gets invoked when the kernel module is being
+                    removed using the command rmmod.
 */
 static void __exit fifo_module_cleanup(void)
 {
@@ -540,12 +540,12 @@ static void __exit fifo_module_cleanup(void)
 	kfree(queue);
 }
 /**
-	Function Name	:	queueAlloc
-	Function Type	:	Custom
-	Description		:	Method used to allocate/re-allocate the queue
-						from various module calls.
-	Parameter		:	mem_size is used to allocate the memory for the
-						queue provided.
+	Function Name   :   queueAlloc
+	Function Type   :   Custom
+	Description     :   Method used to allocate/re-allocate the queue
+                        from various module calls.
+	Parameter       :   mem_size is used to allocate the memory for the
+                        queue provided.
 */
 int queueAlloc(int mem_size) {
 	
