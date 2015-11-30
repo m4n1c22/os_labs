@@ -22,7 +22,7 @@ static ssize_t gen_module_read(struct file *file, char *buf, size_t count, loff_
 {
 	struct timeval timeval_obj;
 	int ret=0;
-	
+	// To get the current time
 	do_gettimeofday(&timeval_obj);
 	
 	printk(KERN_INFO "Task1.1 Module read.\n");
@@ -77,7 +77,6 @@ static void __exit gen_module_cleanup(void)
 {
 	printk(KERN_INFO "Task1.1 module is being unloaded.\n");
 	
-	//TODO:Error conditions to be handled
 	proc_remove(proc_file_entry);
 }
 
