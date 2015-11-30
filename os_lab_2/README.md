@@ -9,7 +9,9 @@ The folder contains:
 - Makefile 
 - task1_1.c - Implementation of task1_1. 
 - task1_2.c - Implementation of task1_2. 
-- task2_1.c - Implementation of task2_1. 
+- task2_1.c - Implementation of task2_1.
+- Question_1_1.txt - Answer for Question 1.1.
+- Question_2_1.txt - Answer for Question 2.1.
 
 #####Build & Run
  
