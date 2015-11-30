@@ -1,0 +1,3 @@
+After running for several times, we were able to find out the following:
+  i. Output will not always be same.
+  ii. While two process trying to change the buffer size and read the buffer parallely, there will be errors. As driver will be sometimes busy in modifying the buffer size or sometimes reading the buffer.
