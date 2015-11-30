@@ -1,0 +1,24 @@
+sudo rmmod task2_1.ko
+sudo make clean
+sudo make
+sudo insmod task2_1.ko
+sh fifo_perm.sh
+ls -l /dev | grep fifo
+dmesg
+sudo echo 4 > /proc/fifo_config
+
+sudo echo "123" > /dev/fifo0
+
+cat /dev/fifo1
+=> 123
+
+sudo echo –n "HH" > /dev/fifo0
+=> error No data available
+
+cat /dev/fifo1
+=> Error No data available
+
+echo –n "1234" > /dev/fifo0
+
+cat /dev/fifo1 & cat /dev/fifo1
+1234 & error Resource or Device busy
