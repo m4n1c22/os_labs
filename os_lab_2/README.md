@@ -19,7 +19,7 @@ If you run ```make``` without target, it will build all the targets.
 Thus, compiling all tasks.
 
 ######Steps to run Task 1.2
- - make
+ - ```make```
  - sudo insmod task1_2.ko
  - echo "1" > /proc/deeds_clock_config or 
    cat>/proc/deeds_clock_config 
@@ -30,7 +30,7 @@ Thus, compiling all tasks.
    0 ctrl+D
 
 ######Steps to Run Task 2.1
- - Compile by running ```make``` command
+ - ```make```
  - sudo insmode task2_1.ko
  - sudo sh fifo_perm.sh
  - sudo echo 4 > /proc/fifo_config
