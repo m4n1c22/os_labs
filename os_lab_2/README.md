@@ -29,7 +29,7 @@ Thus, compiling all tasks.
 
 ######Steps to Run Task 2.1
  - ```make```
- - ```sudo insmode task2_1.ko```
+ - ```sudo insmod task2_1.ko```
  - ```sudo sh fifo_perm.sh```
  - ```sudo echo 4 > /proc/fifo_config```
  - ```sudo echo "123" > /dev/fifo0```
