@@ -1,0 +1,19 @@
+sudo rmmod task1_2.ko
+make clean
+make
+sudo insmod os_module1_2.ko
+dmesg
+cat>/proc/deeds_clock_config
+1 ctrl+D
+dmesg
+cat /proc/deeds_clock_config
+cat /proc/deeds_clock
+cat>/proc/deeds_clock_config
+0 ctrl+D
+dmesg
+echo "0" > /proc/deeds_clock_config
+cat /proc/deeds_clock_config
+cat /proc/deeds_clock
+echo "1" > /proc/deeds_clock_config
+cat /proc/deeds_clock_config
+cat /proc/deeds_clock
