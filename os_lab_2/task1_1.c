@@ -10,14 +10,13 @@ MODULE_DESCRIPTION("Lab Solution Task1.1");
 MODULE_LICENSE("GPL");
 
 //Macros
-
 #define PROC_FILE_NAME	"deeds_clock"
 
-//procfs_dir object
-
+// Proc FS_Dir Object
 static struct proc_dir_entry *proc_file_entry;
 static int finished;
-// this method is executed when reading from the module
+
+// This method is executed when reading from the module
 static ssize_t gen_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
 	struct timeval timeval_obj;
@@ -33,7 +32,8 @@ static ssize_t gen_module_read(struct file *file, char *buf, size_t count, loff_
 	}	
 	return 0;
 }
-// this method is called whenever the module is being used
+
+// This method is called whenever the module is being used
 // e.g. for both read and write operations
 static int gen_module_open(struct inode * inode, struct file * file)
 {
@@ -42,14 +42,14 @@ static int gen_module_open(struct inode * inode, struct file * file)
 	return 0;
 }
 
-// this method releases the module and makes it available for new operations
+// This method releases the module and makes it available for new operations
 static int gen_module_release(struct inode * inode, struct file * file)
 {
 	printk(KERN_INFO "Task1.1 Module released.\n");
 	return 0;
 }
 
-// module's file operations, a module may need more of these
+// Module's file operations, a module may need more of these
 static struct file_operations gen_module_fops = {
 	.owner =	THIS_MODULE,
 	.read =		gen_module_read,
@@ -57,7 +57,7 @@ static struct file_operations gen_module_fops = {
 	.release =	gen_module_release,
 };
 
-// initialize module (executed when using insmod)
+// Initialize module (executed when using insmod)
 static int __init gen_module_init(void)
 {
 	printk(KERN_INFO "Task1.1 module is being loaded.\n");
@@ -72,7 +72,7 @@ static int __init gen_module_init(void)
 	return 0;
 }
 
-// cleanup module (executed when using rmmod)
+// Cleanup module (executed when using rmmod)
 static void __exit gen_module_cleanup(void)
 {
 	printk(KERN_INFO "Task1.1 module is being unloaded.\n");
