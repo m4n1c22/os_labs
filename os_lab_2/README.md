@@ -20,19 +20,19 @@ Thus, compiling all tasks.
 
 ######Steps to run Task 1.2
  - ```make```
- - sudo insmod task1_2.ko
- - echo "1" > /proc/deeds_clock_config or 
-   cat>/proc/deeds_clock_config 
-   1 ctrl+D
- - cat /proc/deeds_clock
- - echo "0" > /proc/deeds_clock_config or
-   cat>/proc/deeds_clock_config
-   0 ctrl+D
+ - ```sudo insmod task1_2.ko```
+ - ```echo "1" > /proc/deeds_clock_config or``` 
+   ```cat>/proc/deeds_clock_config ```
+   ```1 ctrl+D```
+ - ```cat /proc/deeds_clock```
+ - ```echo "0" > /proc/deeds_clock_config or```
+   ```cat>/proc/deeds_clock_config```
+   ```0 ctrl+D```
 
 ######Steps to Run Task 2.1
  - ```make```
- - sudo insmode task2_1.ko
- - sudo sh fifo_perm.sh
- - sudo echo 4 > /proc/fifo_config
- - sudo echo "123" > /dev/fifo0
- - cat /dev/fifo1
+ - ```sudo insmode task2_1.ko```
+ - ```sudo sh fifo_perm.sh```
+ - ```sudo echo 4 > /proc/fifo_config```
+ - ```sudo echo "123" > /dev/fifo0```
+ - ```cat /dev/fifo1```
