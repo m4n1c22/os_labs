@@ -23,21 +23,32 @@ MODULE_LICENSE("GPL");
 #define CLASS_NAME  		"fifo_class"
 
 #define IS_MINOR(A,B)	    (A==B)
+
+//Proc FS File Object
 static struct proc_dir_entry *fifo_config_file_entry;
 
+//Device Class Object
 static struct class*  fifoClass  = NULL; 
+
+//Device Object
 static struct device* fifo0 = NULL; 
 static struct device* fifo1 = NULL;
 
+//FIFO_QUEUE
 static char *queue;
 
-static int mem_alloc_size=8;
+//MEMORY RELATED VARIABLES
+static int mem_alloc_size;
 
+//Minor Numbers
 static int minorNumber;
 
-static int finished_config,finished_fifo;
-static int majorNumber;
+//Flags
+static int finished_config;
+static int finished_fifo;
+static int device_open;
 
+//Function prototype
 int queueAlloc(int mem_size);
 
 // this method is executed when reading from the module
@@ -95,6 +106,10 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 // e.g. for both read and write operations
 static int fifo_module_open(struct inode * inode, struct file * file)
 {
+	if(device_open) {
+		return -EBUSY;
+	}
+	device_open++;
 	printk(KERN_INFO "Fifo module is being opened.\n");
 	printk(KERN_INFO "Fifo %d module is being opened.\n",iminor(inode));
 	minorNumber = iminor(inode);
@@ -107,6 +122,7 @@ static int fifo_module_open(struct inode * inode, struct file * file)
 // this method releases the module and makes it available for new operations
 static int fifo_module_release(struct inode * inode, struct file * file)
 {
+	device_open--;
 	printk(KERN_INFO "Fifo module is being released.\n");
 	return 0;
 }
@@ -187,6 +203,7 @@ static struct file_operations fifo_module_fops = {
 // initialize module (executed when using insmod)
 static int __init fifo_module_init(void)
 {	
+	int ret;
 	printk(KERN_INFO "FIFO module is being loaded.\n");	
 	fifo_config_file_entry = proc_create(FIFO_CONFIG,0777,NULL,&fifo_config_module_fops);
 	
@@ -196,11 +213,11 @@ static int __init fifo_module_init(void)
 	}
 	
 	// Register the character device (atleast try) 
-	majorNumber = register_chrdev(MAJOR_NUM, FIFO_DEVICE, &fifo_module_fops);
-	if (majorNumber < 0) {
+	ret = register_chrdev(MAJOR_NUM, FIFO_DEVICE, &fifo_module_fops);
+	if (ret < 0) {
 		printk(KERN_ALERT "%s failed with %d\n",
 		       "Sorry, registering the character device ", MAJOR_NUM);
-		return majorNumber;
+		return ret;
 	}
 	printk(KERN_INFO "FIFO: registered correctly with major number %d\n", MAJOR_NUM);
 
@@ -231,7 +248,9 @@ static int __init fifo_module_init(void)
       return PTR_ERR(fifo1);
    }
    printk(KERN_INFO "FIFO: device class created correctly\n"); // Made it! device was initialized
-
+	
+   device_open = 0;	
+   mem_alloc_size=8;
 
    queue = kmalloc(mem_alloc_size,GFP_KERNEL);
    if(!queue) {
