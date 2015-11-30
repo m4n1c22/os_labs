@@ -36,8 +36,11 @@ static ssize_t deeds_clock_module_read(struct file *file, char *buf, size_t coun
 			time_to_tm(get_seconds(),sys_tz.tz_minuteswest * 60, &tm_obj);		
 			ret = sprintf(buf,"current time:%04ld-%02d-%02d %02d:%02d:%02d\n", tm_obj.tm_year + 1900, tm_obj.tm_mon + 1, tm_obj.tm_mday, tm_obj.tm_hour, tm_obj.tm_min, tm_obj.tm_sec);
 		}
-		else {
+		else {			
 			ret = sprintf(buf,"current time:%ld seconds\n",timeval_obj.tv_sec);
+			if(ret <0) {
+				return -ENOMEM;			
+			}
 		}
 		finished_clock = 1;
 		return ret;
@@ -51,6 +54,9 @@ static ssize_t deeds_clock_config_module_read(struct file *file, char *buf, size
 	int ret;
 	if(!finished_clock_config) {
 		ret = sprintf(buf,"current clock format:%d \n",option);
+		if(ret < 0) {
+			return -ENOMEM;		
+		}
 		finished_clock_config = 1;
 		return ret;
 	}	
@@ -72,8 +78,8 @@ static ssize_t deeds_clock_config_module_write(struct file *file, const char *bu
 		option = 0;
 	}
 	else {
-		printk(KERN_INFO "Invalid character is written.\n");
-		printk(KERN_INFO "Count:%ld\n", count);
+		printk(KERN_ALERT "Invalid character is written.\n");
+		return -EINVAL;		
 	}
 	return count;
 }
