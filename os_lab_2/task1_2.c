@@ -9,25 +9,25 @@ MODULE_AUTHOR("Sreeram Sadasivam");
 MODULE_DESCRIPTION("Lab Solution Task1.2");
 MODULE_LICENSE("GPL");
 
-//Macros
-
+// Macros
 #define PROC_FILE_NAME			"deeds_clock"
 #define PROC_CONFIG_FILE_NAME	"deeds_clock_config"
 
-//procfs_dir object
+// Proc FS Dir Object
 
 static struct proc_dir_entry *proc_file_entry,*proc_config_file_entry;
 
 static int finished_clock,finished_clock_config;
 static int option;
 
-// this method is executed when reading from the module
+// This method is executed when reading from the module
 static ssize_t deeds_clock_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
 	struct timeval timeval_obj;
 	struct tm tm_obj;
 	int ret=0;
 	
+	// To get current time from Kernel	
 	do_gettimeofday(&timeval_obj);
 	
 	printk(KERN_INFO "Deeds Clock Module read.\n");
@@ -48,7 +48,7 @@ static ssize_t deeds_clock_module_read(struct file *file, char *buf, size_t coun
 	return 0;
 }
 
-// this method is executed when reading from the module
+// This method is executed when reading from the module
 static ssize_t deeds_clock_config_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
@@ -64,11 +64,12 @@ static ssize_t deeds_clock_config_module_read(struct file *file, char *buf, size
 }
 
 
-// this method is executed when writing to the module
+// This method is executed when writing to the module
 static ssize_t deeds_clock_config_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
 	printk(KERN_INFO "Task1.2 Module written.\n");
 	
+	// Compare if User has given the value 1
 	if(strncmp(buf,"1",1)==0) {
 		printk(KERN_INFO "1 is written.\n");
 		option = 1;
@@ -84,7 +85,7 @@ static ssize_t deeds_clock_config_module_write(struct file *file, const char *bu
 	return count;
 }
 
-// this method is called whenever the module is being used
+// This method is called whenever the module is being used
 // e.g. for both read and write operations
 static int deeds_clock_module_open(struct inode * inode, struct file * file)
 {
@@ -93,7 +94,7 @@ static int deeds_clock_module_open(struct inode * inode, struct file * file)
 	return 0;
 }
 
-// this method is called whenever the module is being used
+// This method is called whenever the module is being used
 // e.g. for both read and write operations
 static int deeds_clock_config_module_open(struct inode * inode, struct file * file)
 {
@@ -102,7 +103,7 @@ static int deeds_clock_config_module_open(struct inode * inode, struct file * fi
 	return 0;
 }
 
-// this method releases the module and makes it available for new operations
+// This method releases the module and makes it available for new operations
 static int deeds_clock_module_release(struct inode * inode, struct file * file)
 {
 	printk(KERN_INFO "Deeds clock Module released.\n");
@@ -110,14 +111,14 @@ static int deeds_clock_module_release(struct inode * inode, struct file * file)
 }
 
 
-// this method releases the module and makes it available for new operations
+// This method releases the module and makes it available for new operations
 static int deeds_clock_config_module_release(struct inode * inode, struct file * file)
 {
 	printk(KERN_INFO "Deeds clock config Module released.\n");
 	return 0;
 }
 
-// module's file operations, a module may need more of these
+// Module's file operations, a module may need more of these
 static struct file_operations deeds_clock_module_fops = {
 	.owner =	THIS_MODULE,
 	.read =		deeds_clock_module_read,
@@ -133,7 +134,7 @@ static struct file_operations deeds_config_module_fops = {
 	.release =	deeds_clock_config_module_release,
 };
 
-// initialize module (executed when using insmod)
+// Initialize module (executed when using insmod)
 static int __init gen_module_init(void)
 {
 	printk(KERN_INFO "Task1.2 module is being loaded.\n");
@@ -155,7 +156,7 @@ static int __init gen_module_init(void)
 	return 0;
 }
 
-// cleanup module (executed when using rmmod)
+// Cleanup module (executed when using rmmod)
 static void __exit gen_module_cleanup(void)
 {
 	printk(KERN_INFO "Task1.2 module is being unloaded.\n");
