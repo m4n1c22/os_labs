@@ -12,7 +12,7 @@
 #include <linux/time.h>
 #include <linux/proc_fs.h>
 
-MODULE_AUTHOR("Sreeram Sadasivam");
+MODULE_AUTHOR("Team Mango");
 MODULE_DESCRIPTION("Lab Solution Task1.1");
 MODULE_LICENSE("GPL");
 
