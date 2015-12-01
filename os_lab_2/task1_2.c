@@ -1,6 +1,6 @@
 /**
 	\file	:	task1_2.c
-	\author	: 	Sreeram Sadasivam
+	\author	: 	Team Mango
 	\brief	:	Task 1.2 of OS Lab-2 related to Clock driver implementation.
 			Task involves use of a config file which modifies the clock
 			info such as clock format.
@@ -13,7 +13,7 @@
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
 
-MODULE_AUTHOR("Sreeram Sadasivam");
+MODULE_AUTHOR("Team Mango");
 MODULE_DESCRIPTION("Lab Solution Task1.2");
 MODULE_LICENSE("GPL");
 
