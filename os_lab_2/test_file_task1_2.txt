@@ -11,9 +11,9 @@ cat /proc/deeds_clock
 cat>/proc/deeds_clock_config
 0 ctrl+D
 dmesg
-echo "0" > /proc/deeds_clock_config
+sudo echo "0" > /proc/deeds_clock_config
 cat /proc/deeds_clock_config
 cat /proc/deeds_clock
-echo "1" > /proc/deeds_clock_config
+sudo echo "1" > /proc/deeds_clock_config
 cat /proc/deeds_clock_config
 cat /proc/deeds_clock
