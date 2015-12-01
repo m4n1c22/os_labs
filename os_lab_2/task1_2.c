@@ -25,7 +25,7 @@ MODULE_LICENSE("GPL");
 #define BASE_10 		10
 
 /** TIME ZONE MACROS */
-#define CEST			7200
+#define CEST			3600
 
 /** Proc FS Dir Object */
 static struct proc_dir_entry *proc_file_entry,*proc_config_file_entry;
@@ -73,7 +73,7 @@ static ssize_t deeds_clock_module_read(struct file *file, char *buf, size_t coun
 		/** To check which clock format is in use. */
 		if(option) {			
 			/** Since option=1, clock format is yy-mm-dd h:m:s*/
-			time_to_tm(get_seconds()+CEST,sys_tz.tz_minuteswest * 60, &tm_obj);		
+			time_to_tm(get_seconds(),CEST/*sys_tz.tz_minuteswest * 60*/, &tm_obj);		
 			ret = sprintf(buf,"current time:%04ld-%02d-%02d %02d:%02d:%02d\n", tm_obj.tm_year + 1900, tm_obj.tm_mon + 1, tm_obj.tm_mday, tm_obj.tm_hour, tm_obj.tm_min, tm_obj.tm_sec);
 			if(ret < 0) {
 				/** Memory Allocation Problem */
