@@ -1,5 +1,7 @@
 #MACROS
-obj-m := task2_1.o
+obj-m := task1_1.o
+obj-m += task1_2.o
+obj-m += task2_1.o
 PWD := $(shell pwd)
 KVER := $(shell uname -r)
 

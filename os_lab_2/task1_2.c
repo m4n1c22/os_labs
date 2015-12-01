@@ -11,6 +11,7 @@
 #include <linux/fs.h>
 #include <linux/time.h>
 #include <linux/proc_fs.h>
+#include <linux/kernel.h>
 
 MODULE_AUTHOR("Sreeram Sadasivam");
 MODULE_DESCRIPTION("Lab Solution Task1.2");
@@ -20,6 +21,8 @@ MODULE_LICENSE("GPL");
 #define PROC_FILE_NAME		"deeds_clock"
 #define PROC_CONFIG_FILE_NAME	"deeds_clock_config"
 
+/** STANDARD MACROS */
+#define BASE_10 		10
 
 /** Proc FS Dir Object */
 static struct proc_dir_entry *proc_file_entry,*proc_config_file_entry;
@@ -141,15 +144,23 @@ static ssize_t deeds_clock_config_module_read(struct file *file, char *buf, size
 */
 static ssize_t deeds_clock_config_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
+	int ret;
+	long int input_clock_format;
 	printk(KERN_INFO "Task1.2 Module written.\n");
 	
+	ret = kstrtol(buf,BASE_10,&input_clock_format);
+	if(ret < 0) {
+		/** Invalid argument in conversion error.*/
+		return -EINVAL;
+	}
+	
 	/** Check if the provided clock format option is 1 or not.*/
-	if(strncmp(buf,"1",1)==0) {
+	if(input_clock_format==1) {
 		printk(KERN_INFO "1 is written.\n");
 		option = 1;
 	}
 	/** Check if the provided clock format option is 0 or not.*/
-	else if(strncmp(buf,"0",1)==0) {
+	else if(input_clock_format==0) {
 		printk(KERN_INFO "0 is written.\n");
 		option = 0;
 	}

@@ -1,0 +1,1 @@
+cmd_/home/adminuser/OS_EXP/os_labs/os_lab_2/task1_2.ko := ld -r -m elf_i386 -T ./scripts/module-common.lds --build-id  -o /home/adminuser/OS_EXP/os_labs/os_lab_2/task1_2.ko /home/adminuser/OS_EXP/os_labs/os_lab_2/task1_2.o /home/adminuser/OS_EXP/os_labs/os_lab_2/task1_2.mod.o
