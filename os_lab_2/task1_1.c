@@ -1,6 +1,6 @@
 /**
 	\file	:	task1_1.c
-	\author	: 	Sreeram Sadasivam
+	\author	: 	Team Mango
 	\brief	:	Task 1.1 of OS Lab-2 related to Clock driver implementation.
 			Task involves use of a clock file which prints the current
 			time in seconds.
