@@ -1,6 +1,6 @@
 /**
 	\file	:	task2_1.c
-	\author	: 	Sreeram Sadasivam
+	\author	: 	Team Mango
 	\brief	:	Task 2 of OS Lab-2 related to FIFO Queue implemented.
 */
 #include <linux/module.h>
@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
-MODULE_AUTHOR("Sreeram Sadasivam");
+MODULE_AUTHOR("Team Mango");
 MODULE_DESCRIPTION("Lab Solution Task 2.1");
 MODULE_LICENSE("GPL");
 
