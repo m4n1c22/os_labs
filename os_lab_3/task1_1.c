@@ -49,9 +49,6 @@ static struct class*  fifoClass  = NULL;
 /** Device Object */
 static struct device* fifo = NULL; 
 
-/** FIFO_QUEUE */
-static char *queue;
-
 /** MEMORY RELATED VARIABLES */
 static int mem_alloc_size;
 
@@ -67,35 +64,44 @@ struct data_item {
 	char *msg;
 };
 
+
+/** FIFO_QUEUE */
+static struct data_item *queue;
+
+/** FIFO QUEUE Pointers*/
+static int head=0; 
+static int tail=0;
+
 /** Parameters passed to Module */
 static int fifo_size;
 
 /** Custom Function prototype */
 int queueAlloc(int mem_size);
 
+char* queueDataItemAsString(struct data_item item);
+
+int setQueueItemWithString(const char *buf);
+
 /**
 	Function Name : fifo_module_read
 	Function Type : Kernel Callback Method
 	Description   : Method is invoked whenever the fifo device files are
-			read. This callback method is triggered when a read 
-			operation performed on the devices register to this 
-			file operation object.
-			FIFO Devices are allocated with one device being 
-			read only(FIFO1) and other being write only(FIFO0).				
+					read. This callback method is triggered when a read 
+					operation performed on the devices register to this 
+					file operation object. FIFO Devices are allocated.
 */
 static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
-	
-		
+			
 	/** 
 		Condition to check if the FIFO Queue is empty or in 
 		underflow state
 	*/
-	if(!strlen(queue)) {
+	//if(!strlen(queue)) {
+	if(head == tail) {
 		printk(KERN_ALERT "FIFO ERROR:Fifo module cannot be read -> Underflow state.\n");	
-		
-			/** Erroneous Data */
+		/** Erroneous Data */
 		return -ENODATA;
 	}
 		
@@ -103,9 +109,10 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 		
 	/** Condition to check if EOF is reached. */
 	if(!finished_fifo) {
-		ret = sprintf(buf,queue);
+		
+		ret = sprintf(buf,queueDataItemAsString(queue[head]));
 		if(ret <0) {
-					/** Memory allocation problem */
+			/** Memory allocation problem */
 			return -ENOMEM;
 		}
 		/** Flag set to Completed marking EOF.*/
@@ -113,9 +120,7 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 		/** Successful execution of read callback with some bytes*/
 		return ret;
 	}
-	
-	/** FIFO Queue reloaded. */
-	queue[0] = END_OF_BUFF;
+	head = (head+1)%mem_alloc_size;
 	
 	/** Successful execution of read callback with EOF reached.*/
 	return 0;
@@ -139,22 +144,22 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 			 Condition to check if the allocation is exceeded. To check
 			 Overflow state is achieved.	
 	*/
-	if((strlen(buf)+strlen(queue))<=mem_alloc_size) {
-		
-		ret = sprintf((queue+strlen(queue)),buf);
-		if(ret<0) {
-			/** Memory allocation problem */
-			return -ENOMEM;
-		}
-		printk(KERN_INFO "FIFO:Fifo module is being written.\n");
-	}
-	else {
+	if((tail+1)%mem_alloc_size == head) {
 		/** Overflow state block */
 		printk(KERN_ALERT "FIFO ERROR:Fifo module in overflow state.\n");
-		
 		/** Buffer overflow problem */
 		return -ENOBUFS;
 	}
+	
+	ret = setQueueItemWithString(buf);
+	
+	/*ret = sprintf((queue+strlen(queue)),buf);*/
+	if(ret<0) {
+		/** Memory allocation problem */
+		return -ENOMEM;
+	}
+	tail = (tail+1)%mem_alloc_size;
+	printk(KERN_INFO "FIFO:Fifo module is being written.\n");
 
 	/** Successful execution of write callback with buffer count.*/
 	return count;
@@ -186,7 +191,6 @@ static int fifo_module_open(struct inode * inode, struct file * file)
 	    synchronization mechanism.
 	*/
 	device_open++;
-	printk(KERN_INFO "FIFO ERROR:Fifo %d module is being opened.\n",iminor(inode));
 	
 	/** Finished flag set to false indicating file is just opened.*/
 	finished_fifo = 0;
@@ -237,17 +241,17 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 	printk(KERN_INFO "FIFO:Fifo config module is being read.\n");
 	
 	/** Condition to check if EOF is reached. */
-	if(!finished_config){
+	/*if(!finished_config){
 		/** Flag set to Completed marking EOF.*/
-		finished_config = 1;
+		/*finished_config = 1;
 		
 		ret = sprintf(buf,"Allocated Size: %d\nFree Size: %d\nTotal Size: %d\n",strlen(queue),mem_alloc_size-strlen(queue),mem_alloc_size);
 		if(ret < 0) {
 			/** Memory allocation problem */
-			return -ENOMEM;
+			/*return -ENOMEM;
 		}
 		/** Successful execution of read callback with some bytes*/
-		return ret;
+		/*return ret;
 	}
 	/** Successful execution of read callback with EOF reached.*/
 	return 0;
@@ -272,35 +276,35 @@ static ssize_t fifo_config_module_write(struct file *file, const char *buf, size
 	printk(KERN_INFO "FIFO:Fifo config module is being written.\n");
 	
 	/** Condition to check if queue in use or not.*/
-	if(strlen(queue)) {		
+	/*if(strlen(queue)) {		
 		printk(KERN_ALERT "FIFO ERROR:Fifo config module cannot be written.\n");
 		
 		/** DEVICE BUSY ERROR */
-		return -EBUSY;
-	}	
+		//return -EBUSY;
+	//}	
 	
 	/** Converting the string value to a number*/
-	ret = kstrtol(buf,BASE_10,&res);
-	if(ret < 0) {
+	//ret = kstrtol(buf,BASE_10,&res);
+	//if(ret < 0) {
 		/** Invalid argument in conversion error.*/
-		return -EINVAL;
-	}
+		//return -EINVAL;
+//	}
 	
 	/** Condition to check if the allocation is with in the limits.*/
-	if(IN_RANGE(res)) {
+	//if(IN_RANGE(res)) {
 		/** 
 		    Condition to check if the queue allocation encountered any
 		    problems.
 		*/
-		if(queueAlloc(res)!=0) {
+		//if(queueAlloc(res)!=0) {
 			/** Memory allocation problem */
-			return -ENOMEM;
+			/*return -ENOMEM;
 		}
 	}
 	else {		
 		printk(KERN_ALERT "FIFO ERROR:Fifo Queue cannot be allocated.\n");
 		/** Memory allocation limit problem */
-		return -ENOMEM;
+	/*	return -ENOMEM;
 	}
 	/** Successful execution of write callback with buffer count.*/
 	return count;
@@ -410,8 +414,8 @@ static int __init fifo_module_init(void)
 	}
 	printk(KERN_INFO "FIFO:registered correctly with major number %d\n", MAJOR_NUM);
 
-    	/** Registering device class and associating devices with it.*/
-    	fifoClass = class_create(THIS_MODULE, CLASS_NAME);
+    /** Registering device class and associating devices with it.*/
+    fifoClass = class_create(THIS_MODULE, CLASS_NAME);
    
 	/** Condition check if the class creation was successful. */
 	if (IS_ERR(fifoClass)){
@@ -446,10 +450,10 @@ static int __init fifo_module_init(void)
 	/** Device Status flag set to false because device not in use.*/
    	device_open = 0;	
 	/** Default Memory size of queue set to 8*/
-	mem_alloc_size = DEFAULT_MEM_SIZE;
+	mem_alloc_size = fifo_size;
 
 	/** Queue Allocated with the default size.*/
-	queue = kmalloc(mem_alloc_size,GFP_KERNEL);
+	queue = (struct data_item*)kmalloc(mem_alloc_size*sizeof(struct data_item),GFP_KERNEL);
 	
 	/** Condition to check if the memory allocation was successful.*/
 	if(!queue) {
@@ -459,7 +463,8 @@ static int __init fifo_module_init(void)
 	}
 	
 	/** FIFO HEAD Set to FIRST Location. */
-	queue[0] = END_OF_BUFF;
+	head = 0;
+	tail = 0;
 	
 	/** Successful execution of initialization method. */
 	return 0;
@@ -492,6 +497,61 @@ static void __exit fifo_module_cleanup(void)
 	/** Deallocating the Queue */
 	kfree(queue);
 }
+
+/**
+	Function Name   :   setQueueItemWithString
+	Function Type   :   Custom
+	Description     :   Method used to set the data item of queue from
+						the passed string.
+	Parameter       :   buf is the string which is parsed and set.
+*/
+int setQueueItemWithString(const char *buf) {
+	
+	int ret;
+	char mod_string[100],msg_string[100];
+	strcpy(mod_string,buf);	
+	ret = kstrtol(strsep(&mod_string,","),BASE_10,&queue[tail].qid);
+	if(ret < 0) {
+		/** Invalid argument in conversion error.*/
+		return -EINVAL;
+	}
+
+	ret = kstrtol(strsep(&mod_string,","),BASE_10,&queue[tail].time);
+	if(ret < 0) {
+		/** Invalid argument in conversion error.*/
+		return -EINVAL;
+	}
+	
+	if(queue[tail].msg) {
+		kfree(queue[tail].msg);
+	}
+	strcpy(msg_string,strsep(mod_string,","));
+	queue[tail].msg = kmalloc(strlen(msg_string),GFP_KERNEL);
+	
+	ret = strcpy(queue[tail].msg,msg_string);
+	if(ret < 0) {
+		/** Invalid argument in conversion error.*/
+		return -EINVAL;
+	}
+	return ret;
+}
+
+/**
+	Function Name   :   queueDataItemAsString
+	Function Type   :   Custom
+	Description     :   Method used to return the data item as String
+	Parameter       :   Item in queue is passed which needs to be
+						converted into string.
+*/
+
+
+char* queueDataItemAsString(struct data_item item) {
+	
+	char buf[100];
+	sprintf(buf,"d,%lld,%s",item.qid,item.time,item.msg);
+	return buf;
+}	
+
 /**
 	Function Name   :   queueAlloc
 	Function Type   :   Custom
@@ -508,7 +568,7 @@ int queueAlloc(int mem_size) {
 		kfree(queue);
 	}
 	/** Allocating queue with the new mem_size.*/
-	queue = kmalloc(mem_size,GFP_KERNEL);
+	queue = (struct data_item*) kmalloc(mem_size*sizeof(struct data_item),GFP_KERNEL);
 	/** Condition to see if the allocation was successful or not.*/
 	if(!queue) {
 		printk(KERN_ERR "FIFO ERROR:Memory allocation problem.\n");
@@ -517,11 +577,13 @@ int queueAlloc(int mem_size) {
 		return -ENOMEM;
 	}
 	/** Setting the memory allocation size */
+	//mem_alloc_size = mem_size;
 	mem_alloc_size = mem_size;
 	
 	/** FIFO HEAD Set to FIRST Location. */
-	queue[0] = END_OF_BUFF;
-	
+	//queue[0] = END_OF_BUFF;
+	head = 0;
+	tail = 0;
 	/** Successful execution of Queue Allocation method*/
 	return 0;
 }
