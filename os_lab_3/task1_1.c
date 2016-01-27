@@ -110,7 +110,7 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 	/** Condition to check if EOF is reached. */
 	if(!finished_fifo) {
 		
-		ret = sprintf(buf,queueDataItemAsString(queue[head]));
+		ret = sprintf(buf,queue[head].msg); //queueDataItemAsString(queue[head]));
 		if(ret <0) {
 			/** Memory allocation problem */
 			return -ENOMEM;
@@ -120,6 +120,7 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 		/** Successful execution of read callback with some bytes*/
 		return ret;
 	}
+	kfree(queue[head].msg);      //added
 	head = (head+1)%mem_alloc_size;
 	
 	/** Successful execution of read callback with EOF reached.*/
@@ -549,7 +550,7 @@ int setQueueItemWithString(const char *buf) {
 	msg_string[j] = '\0';
 	j=0;		
 */	
-	/*if(queue[tail].msg) {
+	/*if(queue[tail].msg!=NULL) {     //modified
 		kfree(queue[tail].msg);
 	}*/
 	queue[tail].msg = kmalloc(strlen(msg_string),GFP_KERNEL);
