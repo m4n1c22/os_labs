@@ -153,11 +153,11 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 	
 	ret = setQueueItemWithString(buf);
 	
-	/*ret = sprintf((queue+strlen(queue)),buf);*/
+	/*ret = sprintf((queue+strlen(queue)),buf);
 	if(ret<0) {
 		/** Memory allocation problem */
-		return -ENOMEM;
-	}
+	/*	return -ENOMEM;
+	}*/
 	tail = (tail+1)%mem_alloc_size;
 	printk(KERN_INFO "FIFO:Fifo module is being written.\n");
 
@@ -507,27 +507,52 @@ static void __exit fifo_module_cleanup(void)
 */
 int setQueueItemWithString(const char *buf) {
 	
-	int ret;
+	int ret,i=0,j=0;
 	char mod_string[100],msg_string[100];
-	strcpy(mod_string,buf);	
-	ret = kstrtol(strsep(&mod_string,","),BASE_10,&queue[tail].qid);
+	sprintf(msg_string,buf);
+	/*
+	while((mod_string[i]!=',') || (mod_string[i]!='\0')) {
+		msg_string[j] = mod_string[i];
+		i++;
+		j++;
+	}
+	msg_string[j] = '\0';
+	j=0;		
+	i++;
+	ret = kstrtol(msg_string,BASE_10,&queue[tail].qid);
 	if(ret < 0) {
 		/** Invalid argument in conversion error.*/
-		return -EINVAL;
+		/*return -EINVAL;
 	}
 
-	ret = kstrtol(strsep(&mod_string,","),BASE_10,&queue[tail].time);
+
+	while((mod_string[i]!=',') || (mod_string[i]!='\0')) {
+		msg_string[j] = mod_string[i];
+		i++;
+		j++;
+	}
+	msg_string[j] = '\0';
+	j=0;
+	i++;		
+	/*ret = kstrtol(msg_string,BASE_10,&queue[tail].time);
 	if(ret < 0) {
 		/** Invalid argument in conversion error.*/
-		return -EINVAL;
-	}
+		/*return -EINVAL;
+	}*/
 	
+	
+/*	while((mod_string[i]!=',') || (mod_string[i]!='\0')) {
+		msg_string[j] = mod_string[i];
+		i++;
+		j++;
+	}
+	msg_string[j] = '\0';
+	j=0;		
+*/	
 	if(queue[tail].msg) {
 		kfree(queue[tail].msg);
 	}
-	strcpy(msg_string,strsep(mod_string,","));
 	queue[tail].msg = kmalloc(strlen(msg_string),GFP_KERNEL);
-	
 	ret = strcpy(queue[tail].msg,msg_string);
 	if(ret < 0) {
 		/** Invalid argument in conversion error.*/
@@ -549,7 +574,7 @@ char* queueDataItemAsString(struct data_item item) {
 	
 	char buf[100];
 	sprintf(buf,"d,%lld,%s",item.qid,item.time,item.msg);
-	return buf;
+	return item.msg;
 }	
 
 /**
