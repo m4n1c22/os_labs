@@ -549,9 +549,9 @@ int setQueueItemWithString(const char *buf) {
 	msg_string[j] = '\0';
 	j=0;		
 */	
-	if(queue[tail].msg) {
+	/*if(queue[tail].msg) {
 		kfree(queue[tail].msg);
-	}
+	}*/
 	queue[tail].msg = kmalloc(strlen(msg_string),GFP_KERNEL);
 	ret = strcpy(queue[tail].msg,msg_string);
 	if(ret < 0) {
