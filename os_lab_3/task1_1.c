@@ -69,8 +69,8 @@ struct data_item {
 static struct data_item *queue;
 
 /** FIFO QUEUE Pointers*/
-static int head=0; 
-static int tail=0;
+static int head; 
+static int tail;
 
 /** Parameters passed to Module */
 static int fifo_size;
@@ -99,8 +99,9 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 		underflow state
 	*/
 	//if(!strlen(queue)) {
-	if(head == tail) {
+	if(head==-1) {
 		printk(KERN_ALERT "FIFO ERROR:Fifo module cannot be read -> Underflow state.\n");	
+		printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
 		/** Erroneous Data */
 		return -ENODATA;
 	}
@@ -121,8 +122,16 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 		return ret;
 	}
 	kfree(queue[head].msg);      //added
-	head = (head+1)%mem_alloc_size;
-	
+	if(head==mem_alloc_size) {
+		head = 0;
+	}
+	else if(head==tail) {
+		head = -1;
+		tail = -1;
+	}	
+	else {
+		head = head+1;
+	}
 	/** Successful execution of read callback with EOF reached.*/
 	return 0;
 }
@@ -140,26 +149,33 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 static ssize_t fifo_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
-	
+	printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
 	/**
 			 Condition to check if the allocation is exceeded. To check
 			 Overflow state is achieved.	
 	*/
-	if((tail+1)%mem_alloc_size == head) {
+	if(((head==0)&&(tail==mem_alloc_size-1))||((tail+1) == head)) {
 		/** Overflow state block */
 		printk(KERN_ALERT "FIFO ERROR:Fifo module in overflow state.\n");
+		printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
 		/** Buffer overflow problem */
 		return -ENOBUFS;
 	}
-	
-	ret = setQueueItemWithString(buf);
 	
 	/*ret = sprintf((queue+strlen(queue)),buf);
 	if(ret<0) {
 		/** Memory allocation problem */
 	/*	return -ENOMEM;
 	}*/
-	tail = (tail+1)%mem_alloc_size;
+	if((head == -1)&&(tail==-1)) {
+		head = 0;
+	}
+	else if(tail==mem_alloc_size-1) {
+		tail=-1;
+	}
+	tail = tail+1;
+	printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
+	ret = setQueueItemWithString(buf);
 	printk(KERN_INFO "FIFO:Fifo module is being written.\n");
 
 	/** Successful execution of write callback with buffer count.*/
@@ -464,8 +480,8 @@ static int __init fifo_module_init(void)
 	}
 	
 	/** FIFO HEAD Set to FIRST Location. */
-	head = 0;
-	tail = 0;
+	head = -1;
+	tail = -1;
 	
 	/** Successful execution of initialization method. */
 	return 0;
@@ -615,8 +631,8 @@ int queueAlloc(int mem_size) {
 	
 	/** FIFO HEAD Set to FIRST Location. */
 	//queue[0] = END_OF_BUFF;
-	head = 0;
-	tail = 0;
+	head = -1;
+	tail = -1;
 	/** Successful execution of Queue Allocation method*/
 	return 0;
 }
