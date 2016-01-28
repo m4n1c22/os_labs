@@ -109,8 +109,8 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 		
 	/** Condition to check if EOF is reached. */
 	if(!finished_fifo) {
-		
-		ret = sprintf(buf,queue[head].msg); //queueDataItemAsString(queue[head]));
+		printk(KERN_INFO "FIFO:queue[head].msg = %s\n", queue[head].msg);	
+		ret = sprintf(buf,"%d, %lld, %s",queue[head].qid, queue[head].time, queue[head].msg); //queueDataItemAsString(queue[head]));
 		if(ret <0) {
 			/** Memory allocation problem */
 			return -ENOMEM;
@@ -510,51 +510,58 @@ int setQueueItemWithString(const char *buf) {
 	
 	int ret,i=0,j=0;
 	char mod_string[100],msg_string[100];
-	sprintf(msg_string,buf);
-	/*
-	while((mod_string[i]!=',') || (mod_string[i]!='\0')) {
+	sprintf(mod_string,buf);
+	
+	while((mod_string[i]!=',') && (mod_string[i]!='\0')) {
 		msg_string[j] = mod_string[i];
 		i++;
 		j++;
 	}
 	msg_string[j] = '\0';
+	printk(KERN_INFO "FIFO: MSG 1 = %s\n", msg_string);
 	j=0;		
 	i++;
 	ret = kstrtol(msg_string,BASE_10,&queue[tail].qid);
+	printk(KERN_INFO "FIFO: after ret");
 	if(ret < 0) {
 		/** Invalid argument in conversion error.*/
-		/*return -EINVAL;
+		return -EINVAL;
 	}
 
 
-	while((mod_string[i]!=',') || (mod_string[i]!='\0')) {
+	while((mod_string[i]!=',') && (mod_string[i]!='\0')) {
 		msg_string[j] = mod_string[i];
 		i++;
 		j++;
 	}
 	msg_string[j] = '\0';
 	j=0;
-	i++;		
-	/*ret = kstrtol(msg_string,BASE_10,&queue[tail].time);
+	i++;	
+	printk(KERN_INFO "FIFO: MSG 2 = %s.\n", msg_string);	
+	ret = kstrtol(msg_string,BASE_10,&queue[tail].time);
 	if(ret < 0) {
 		/** Invalid argument in conversion error.*/
-		/*return -EINVAL;
-	}*/
+		return -EINVAL;
+	}
 	
 	
-/*	while((mod_string[i]!=',') || (mod_string[i]!='\0')) {
+	while((mod_string[i]!=',') && (mod_string[i]!='\0')) {
 		msg_string[j] = mod_string[i];
 		i++;
 		j++;
 	}
 	msg_string[j] = '\0';
 	j=0;		
-*/	
+	
 	/*if(queue[tail].msg!=NULL) {     //modified
 		kfree(queue[tail].msg);
 	}*/
+	
+	printk(KERN_INFO "FIFO: MSG 3= %s.\n", msg_string);
 	queue[tail].msg = kmalloc(strlen(msg_string),GFP_KERNEL);
-	ret = strcpy(queue[tail].msg,msg_string);
+	ret = sprintf(queue[tail].msg,msg_string);
+	printk(KERN_INFO "FIFO: queue[tail].msg= %s.\n", queue[tail].msg);
+	printk(KERN_INFO "FIFO: ret= %s.\n", ret);
 	if(ret < 0) {
 		/** Invalid argument in conversion error.*/
 		return -EINVAL;
