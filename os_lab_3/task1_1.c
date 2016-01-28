@@ -132,6 +132,7 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 	else {
 		head = head+1;
 	}
+	head = (head+1)%mem_alloc_size;
 	/** Successful execution of read callback with EOF reached.*/
 	return 0;
 }
@@ -154,6 +155,7 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 			 Condition to check if the allocation is exceeded. To check
 			 Overflow state is achieved.	
 	*/
+
 	if(((head==0)&&(tail==mem_alloc_size-1))||((tail+1) == head)) {
 		/** Overflow state block */
 		printk(KERN_ALERT "FIFO ERROR:Fifo module in overflow state.\n");
@@ -633,6 +635,7 @@ int queueAlloc(int mem_size) {
 	//queue[0] = END_OF_BUFF;
 	head = -1;
 	tail = -1;
+
 	/** Successful execution of Queue Allocation method*/
 	return 0;
 }
