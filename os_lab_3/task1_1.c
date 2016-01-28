@@ -71,7 +71,7 @@ static struct data_item *queue;
 /** FIFO QUEUE Pointers*/
 static int head=0; 
 static int tail=0;
-
+static int data_items=0;
 /** Parameters passed to Module */
 static int fifo_size;
 
@@ -99,7 +99,7 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 		underflow state
 	*/
 	//if(!strlen(queue)) {
-	if(head == tail) {
+	if(data_items == 0) {
 		printk(KERN_ALERT "FIFO ERROR:Fifo module cannot be read -> Underflow state.\n");	
 		/** Erroneous Data */
 		return -ENODATA;
@@ -122,6 +122,7 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 	}
 	kfree(queue[head].msg);      //added
 	head = (head+1)%mem_alloc_size;
+	data_items--;
 	
 	/** Successful execution of read callback with EOF reached.*/
 	return 0;
@@ -145,7 +146,7 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 			 Condition to check if the allocation is exceeded. To check
 			 Overflow state is achieved.	
 	*/
-	if((tail+1)%mem_alloc_size == head) {
+	if(data_items >= mem_alloc_size) {
 		/** Overflow state block */
 		printk(KERN_ALERT "FIFO ERROR:Fifo module in overflow state.\n");
 		/** Buffer overflow problem */
@@ -160,6 +161,7 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 	/*	return -ENOMEM;
 	}*/
 	tail = (tail+1)%mem_alloc_size;
+	data_items++;
 	printk(KERN_INFO "FIFO:Fifo module is being written.\n");
 
 	/** Successful execution of write callback with buffer count.*/
@@ -466,6 +468,7 @@ static int __init fifo_module_init(void)
 	/** FIFO HEAD Set to FIRST Location. */
 	head = 0;
 	tail = 0;
+	data_items = 0;
 	
 	/** Successful execution of initialization method. */
 	return 0;
@@ -617,6 +620,7 @@ int queueAlloc(int mem_size) {
 	//queue[0] = END_OF_BUFF;
 	head = 0;
 	tail = 0;
+	data_items = 0;
 	/** Successful execution of Queue Allocation method*/
 	return 0;
 }
