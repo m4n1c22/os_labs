@@ -12,6 +12,8 @@
 #include <asm/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/semaphore.h>
+
 
 MODULE_AUTHOR("Team Mango");
 MODULE_DESCRIPTION("Lab Solution Task 1.1");
@@ -75,12 +77,27 @@ static int tail;
 /** Parameters passed to Module */
 static int fifo_size;
 
+/** Semaphores to producer & consumer problem */
+static struct semaphore mutex;
+static struct semaphore empty;
+static struct semaphore full;
+
+
 /** Custom Function prototype */
 int queueAlloc(int mem_size);
 
 char* queueDataItemAsString(struct data_item item);
 
 int setQueueItemWithString(const char *buf);
+
+/** fifo module prototypes */
+static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos);
+static ssize_t fifo_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos);
+
+/** Exporting Functions*/
+EXPORT_SYMBOL_GPL(fifo_module_write);
+EXPORT_SYMBOL_GPL(fifo_module_read);
+
 
 /**
 	Function Name : fifo_module_read
@@ -93,48 +110,67 @@ int setQueueItemWithString(const char *buf);
 static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
-			
-	/** 
-		Condition to check if the FIFO Queue is empty or in 
-		underflow state
-	*/
-	//if(!strlen(queue)) {
-	if(head==-1) {
-		printk(KERN_ALERT "FIFO ERROR:Fifo module cannot be read -> Underflow state.\n");	
-		printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
-		/** Erroneous Data */
-		return -ENODATA;
-	}
-		
+					
 	printk(KERN_INFO "FIFO:Fifo module is being read.\n");	
-		
-	/** Condition to check if EOF is reached. */
-	if(!finished_fifo) {
-		printk(KERN_INFO "FIFO:queue[head].msg = %s\n", queue[head].msg);	
-		ret = sprintf(buf,"%d, %lld, %s",queue[head].qid, queue[head].time, queue[head].msg); //queueDataItemAsString(queue[head]));
-		if(ret <0) {
-			/** Memory allocation problem */
-			return -ENOMEM;
-		}
-		/** Flag set to Completed marking EOF.*/
-		finished_fifo = 1;
-		/** Successful execution of read callback with some bytes*/
-		return ret;
+	if (down_interruptible(&empty)){
+		printk(KERN_ALERT "FIFO ERROR:Fifo Read access failed");
+		return -ERESTARTSYS;
 	}
-	kfree(queue[head].msg);      //added
-	if(head==mem_alloc_size) {
-		head = 0;
-	}
-	else if(head==tail) {
-		head = -1;
-		tail = -1;
-	}	
 	else {
-		head = head+1;
+		if(down_interruptible(&mutex)){
+				printk(KERN_ALERT "FIFO ERROR:Mutual Exclusive position access failed from read module");
+				up(&empty);
+				return -ERESTARTSYS;
+		}
+		else {
+			/** 
+				Condition to check if the FIFO Queue is empty or in 
+				underflow state
+			*/
+			if(head==-1) {
+				printk(KERN_ALERT "FIFO ERROR:Fifo module cannot be read -> Underflow state.\n");	
+				printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
+				/** Erroneous Data */
+				up(&empty);
+				up(&mutex);
+				return -ENODATA;
+			}
+			else {
+				/** Condition to check if EOF is reached. */
+				if(!finished_fifo) {
+					printk(KERN_INFO "FIFO:queue[head].msg = %s\n", queue[head].msg);	
+					ret = sprintf(buf,"%d, %lld, %s",queue[head].qid, queue[head].time, queue[head].msg); //queueDataItemAsString(queue[head]));
+					if(ret <0) {
+						/** Memory allocation problem */
+						return -ENOMEM;
+					}
+					/** Flag set to Completed marking EOF.*/
+					finished_fifo = 1;
+					/** Successful execution of read callback with some bytes*/
+					return ret;
+				}
+				kfree(queue[head].msg);      //added
+				if(head==mem_alloc_size) {
+					head = 0;
+				}
+				else if(head==tail) {
+					head = -1;
+					tail = -1;
+				}	
+				else {
+					head = head+1;
+				}
+				head = (head+1)%mem_alloc_size;
+				
+				up(&full);
+				up(&mutex);
+
+				
+				/** Successful execution of read callback with EOF reached.*/
+				return 0;
+			}
+		}
 	}
-	head = (head+1)%mem_alloc_size;
-	/** Successful execution of read callback with EOF reached.*/
-	return 0;
 }
 
 /**
@@ -151,37 +187,57 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 {
 	int ret;
 	printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
-	/**
-			 Condition to check if the allocation is exceeded. To check
-			 Overflow state is achieved.	
-	*/
+	if (( buf == NULL) ||  (*buf == 0)) {
+      return -ENOMEM;
+	}
+	if (down_interruptible(&full)){
+		printk(KERN_ALERT "FIFO ERROR:Write access failed.");
+		return -ERESTARTSYS;
+	}
+	else {
+		if (down_interruptible(&mutex)){
+			printk(KERN_ALERT "FIFO ERROR: Mutual Exclusive access failed from write module");
+			up(&full);
+			return -ERESTARTSYS;
+		}
+		else {
 
-	if(((head==0)&&(tail==mem_alloc_size-1))||((tail+1) == head)) {
-		/** Overflow state block */
-		printk(KERN_ALERT "FIFO ERROR:Fifo module in overflow state.\n");
-		printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
-		/** Buffer overflow problem */
-		return -ENOBUFS;
-	}
-	
-	/*ret = sprintf((queue+strlen(queue)),buf);
-	if(ret<0) {
-		/** Memory allocation problem */
-	/*	return -ENOMEM;
-	}*/
-	if((head == -1)&&(tail==-1)) {
-		head = 0;
-	}
-	else if(tail==mem_alloc_size-1) {
-		tail=-1;
-	}
-	tail = tail+1;
-	printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
-	ret = setQueueItemWithString(buf);
-	printk(KERN_INFO "FIFO:Fifo module is being written.\n");
+			/**
+				Condition to check if the allocation is exceeded. To check
+				Overflow state is achieved.	
+			*/
 
-	/** Successful execution of write callback with buffer count.*/
-	return count;
+			if(((head==0)&&(tail==mem_alloc_size-1))||((tail+1) == head)) {
+				/** Overflow state block */
+				printk(KERN_ALERT "FIFO ERROR:Fifo module in overflow state.\n");
+				printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
+				/** Buffer overflow problem */
+				up(&mutex);
+				return -ENOBUFS;
+			}
+			
+			/*ret = sprintf((queue+strlen(queue)),buf);
+			if(ret<0) {
+				/** Memory allocation problem */
+			/*	return -ENOMEM;
+			}*/
+			if((head == -1)&&(tail==-1)) {
+				head = 0;
+			}
+			else if(tail==mem_alloc_size-1) {
+				tail=-1;
+			}
+			tail = tail+1;
+			printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
+			ret = setQueueItemWithString(buf);
+			printk(KERN_INFO "FIFO:Fifo module is being written.\n");
+
+			up(&empty);
+			up(&mutex);
+			/** Successful execution of write callback with buffer count.*/
+			return count;
+		}
+	}
 }
 
 
@@ -484,6 +540,13 @@ static int __init fifo_module_init(void)
 	/** FIFO HEAD Set to FIRST Location. */
 	head = -1;
 	tail = -1;
+	
+	/** Initializing the semaphores */
+	
+	sema_init(&mutex,1);
+	sema_init(&empty,0);
+	sema_init(&full,mem_alloc_size);
+
 	
 	/** Successful execution of initialization method. */
 	return 0;
