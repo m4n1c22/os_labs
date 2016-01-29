@@ -10,6 +10,6 @@ Solving the producer consumer problem.
 * Run the `fifo_perm.sh` script to provide Read/Write permissions to the driver file `/dev/deeds_fifo`. 
 * Verification of module can be done running the `dmesg` command in terminal to determine if the module is loaded in the kernel or not.
 * For inserting data use `sudo echo "data" > /dev/deeds_fifo` command in the terminal, which writes data to the FIFO Queue created.
-* For removing or displaying data from the queue run the command `sudo cat /dev/deeds_fifo`.
+* For removing or displaying data from the queue run the command `cat /dev/deeds_fifo`.
 * For removing the module from the kernel run the command `sudo rmmod task1_1`
 * For checking stats run the command `sudo cat /proc/fifo_config`.
