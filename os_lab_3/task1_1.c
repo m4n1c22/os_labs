@@ -116,6 +116,12 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 	int ret;
 					
 	printk(KERN_INFO "FIFO:Fifo module is being read.\n");	
+	/** Condition to check if EOF is reached. */
+	if(finished_fifo) {
+			/** Successful execution of read callback with EOF reached.*/
+			return 0;
+
+	}
 	if (down_interruptible(&empty)){
 		printk(KERN_ALERT "FIFO ERROR:Fifo Read access failed");
 		return -ERESTARTSYS;
@@ -131,17 +137,15 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 				Condition to check if the FIFO Queue is empty or in 
 				underflow state
 			*/
-			if(head==-1) {
+			/*if(head==-1) {
 				printk(KERN_ALERT "FIFO ERROR:Fifo module cannot be read -> Underflow state.\n");	
 				printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
 				/** Erroneous Data */
-				up(&empty);
+				/*up(&empty);
 				up(&mutex);
 				return -ENODATA;
-			}
-			else {
-				/** Condition to check if EOF is reached. */
-				if(!finished_fifo) {
+			}*/
+			//else {
 					printk(KERN_INFO "FIFO:queue[head].msg = %s\n", queue[head].msg);	
 					ret = sprintf(buf,"%d, %lld, %s",queue[head].qid, queue[head].time, queue[head].msg); //queueDataItemAsString(queue[head]));
 					if(ret <0) {
@@ -164,17 +168,15 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 					}
 					head = (head+1)%mem_alloc_size;
 					
-					up(&full);
 					up(&mutex);
+					up(&full);
 
 					/** Successful execution of read callback with some bytes*/
 					return ret;
-				}		
-				up(&mutex);
-				up(&empty);		
-				/** Successful execution of read callback with EOF reached.*/
-				return 0;
-			}
+				//}		
+//				up(&mutex);
+//				up(&empty);		
+			//}
 		}
 	}
 }
@@ -217,14 +219,14 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 				Overflow state is achieved.	
 			*/
 
-			if(((head==0)&&(tail==mem_alloc_size-1))||((tail+1) == head)) {
+			//if(((head==0)&&(tail==mem_alloc_size-1))||((tail+1) == head)) {
 				/** Overflow state block */
-				printk(KERN_ALERT "FIFO ERROR:Fifo module in overflow state.\n");
-				printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
+				//printk(KERN_ALERT "FIFO ERROR:Fifo module in overflow state.\n");
+				//printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
 				/** Buffer overflow problem */
-				up(&mutex);
-				return -ENOBUFS;
-			}
+				//up(&mutex);
+				//return -ENOBUFS;
+			//}
 			
 			/*ret = sprintf((queue+strlen(queue)),buf);
 			if(ret<0) {
@@ -242,8 +244,8 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 			ret = setQueueItemWithString(buf);
 			printk(KERN_INFO "FIFO:Fifo module is being written.\n");
 
-			up(&empty);
 			up(&mutex);
+			up(&empty);
 			/** Successful execution of write callback with buffer count.*/
 			return count;
 		}
