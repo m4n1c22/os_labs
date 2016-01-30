@@ -32,7 +32,7 @@ MODULE_LICENSE("GPL");
 
 #define IN_RANGE(MEM)       ((MEM>=LOWER_LIMIT)&&(MEM<=UPPER_LIMIT))
 
-/** DEVICE RELATED Macros */
+/** DEVICE RELATED MACROS */
 
 #define FIFO_DEVICE        "deeds_fifo"
 #define FIFO_DEVICE_NAME   "deeds_fifo"
@@ -91,12 +91,12 @@ char* queueDataItemAsString(struct data_item item);
 int setQueueItemWithString(const char *buf);
 
 /** fifo module prototypes */
-static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos);
-static ssize_t fifo_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos);
+static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos);
+static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos);
 
 /** Exporting Functions*/
-EXPORT_SYMBOL_GPL(fifo_module_write);
-EXPORT_SYMBOL_GPL(fifo_module_read);
+EXPORT_SYMBOL_GPL(fifo_read);
+EXPORT_SYMBOL_GPL(fifo_write);
 
 
 /**
@@ -108,6 +108,10 @@ EXPORT_SYMBOL_GPL(fifo_module_read);
 					file operation object. FIFO Devices are allocated.
 */
 static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
+{
+	return fifo_read(buf,count,ppos);
+}
+static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
 					
@@ -146,26 +150,28 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 					}
 					/** Flag set to Completed marking EOF.*/
 					finished_fifo = 1;
+					
+					kfree(queue[head].msg);      //added
+					if(head==mem_alloc_size) {
+						head = 0;
+					}
+					else if(head==tail) {
+						head = -1;
+						tail = -1;
+					}	
+					else {
+						head = head+1;
+					}
+					head = (head+1)%mem_alloc_size;
+					
+					up(&full);
+					up(&mutex);
+
 					/** Successful execution of read callback with some bytes*/
 					return ret;
-				}
-				kfree(queue[head].msg);      //added
-				if(head==mem_alloc_size) {
-					head = 0;
-				}
-				else if(head==tail) {
-					head = -1;
-					tail = -1;
-				}	
-				else {
-					head = head+1;
-				}
-				head = (head+1)%mem_alloc_size;
-				
-				up(&full);
+				}		
 				up(&mutex);
-
-				
+				up(&empty);		
 				/** Successful execution of read callback with EOF reached.*/
 				return 0;
 			}
@@ -184,6 +190,10 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 			read only(FIFO1) and other being write only(FIFO0).				
 */
 static ssize_t fifo_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
+{
+	return fifo_write(buf,count,ppos);
+}
+static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
 	printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
