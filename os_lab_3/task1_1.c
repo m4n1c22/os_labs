@@ -266,16 +266,16 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 static int fifo_module_open(struct inode * inode, struct file * file)
 {
 	/** Condition to check if the device is already in use. */
-	if(device_open) {
+	//if(device_open) {
 		/** Device Busy Error */
-		return -EBUSY;
-	}
+		//return -EBUSY;
+	//}
     
 	/** 
 	    Increment and using the device_open variable as a 
 	    synchronization mechanism.
 	*/
-	device_open++;
+	//device_open++;
 	
 	/** Finished flag set to false indicating file is just opened.*/
 	finished_fifo = 0;
@@ -300,7 +300,7 @@ static int fifo_module_release(struct inode * inode, struct file * file)
 	    Decrement and using the device_open variable as a 
 	    synchronization mechanism.
 	*/
-	device_open--;
+	//device_open--;
 	printk(KERN_INFO "FIFO:Fifo module is being released.\n");
 	
 	/** Successful execution of release callback */
