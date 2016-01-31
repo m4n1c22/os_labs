@@ -78,6 +78,10 @@ static int tail;
 static int push;
 static int pop;
 
+/** Producer Consumer counters */
+static int producer_ctr;
+static int consumer_ctr;
+
 /** Parameters passed to Module */
 static int fifo_size;
 
@@ -86,13 +90,22 @@ static struct semaphore mutex;
 static struct semaphore empty;
 static struct semaphore full;
 
+/** Semaphores for producer-consumer counters */
+static struct semaphore producer_mutex;
+static struct semaphore consumer_mutex;
+
 
 /** Custom Function prototype */
 int queueAlloc(int mem_size);
 
 char* queueDataItemAsString(struct data_item item);
 
-int setQueueItemWithString(const char *buf);
+int setQueueItemWithString(const char *buf); 
+
+int producerInc(void);
+int producerDec(void);
+int consumerInc(void);
+int consumerDec(void);
 
 /** fifo module prototypes */
 static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos);
@@ -113,27 +126,42 @@ EXPORT_SYMBOL_GPL(fifo_write);
 */
 static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
+
+	if(finished_fifo) {
+			
+		/** Successful execution of read callback with EOF reached.*/
+			return 0;
+
+	}
+	/** Flag set to Completed marking EOF.*/
+	finished_fifo = 1;
 	return fifo_read(buf,count,ppos);
 }
 static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
+	int ret_buf;
 
 	printk(KERN_INFO "FIFO:Fifo module is being read.\n");
-	/** Condition to check if EOF is reached. */
-	if(finished_fifo) {
-			/** Successful execution of read callback with EOF reached.*/
-			return 0;
-
-	}
+		
+	ret=consumerInc();
+	if (ret!=0)
+		return -ERESTARTSYS;
+	
 	if (down_interruptible(&empty)){
 		printk(KERN_ALERT "FIFO ERROR:Fifo Read access failed");
+		ret=consumerDec();
+		if (ret!=0)
+			return -ERESTARTSYS;
 		return -ERESTARTSYS;
 	}
 	else {
 		if(down_interruptible(&mutex)){
 				printk(KERN_ALERT "FIFO ERROR:Mutual Exclusive position access failed from read module");
 				up(&empty);
+				ret=consumerDec();
+				if (ret!=0)
+					return -ERESTARTSYS;
 				return -ERESTARTSYS;
 		}
 		else {
@@ -151,13 +179,12 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 			}*/
 			//else {
 					printk(KERN_INFO "FIFO:queue[head].msg = %s\n", queue[head].msg);
-					ret = sprintf(buf,"%d, %lld, %s",queue[head].qid, queue[head].time, queue[head].msg); //queueDataItemAsString(queue[head]));
-					if(ret <0) {
+					ret_buf = sprintf(buf,"%d, %lld, %s",queue[head].qid, queue[head].time, queue[head].msg); //queueDataItemAsString(queue[head]));
+					if(ret_buf <0) {
 						/** Memory allocation problem */
 						return -ENOMEM;
 					}
-					/** Flag set to Completed marking EOF.*/
-					finished_fifo = 1;
+					
 
 					kfree(queue[head].msg);      //added
 					if(head==(mem_alloc_size-1)) {
@@ -175,8 +202,12 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 					up(&mutex);
 					up(&full);
 
+					ret=consumerDec();
+					if (ret!=0)
+						return -ERESTARTSYS;
+
 					/** Successful execution of read callback with some bytes*/
-					return ret;
+					return ret_buf;
 				//}
 //				up(&mutex);
 //				up(&empty);
@@ -203,17 +234,32 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
 	printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);
+
+	ret=producerInc();
+	if (ret!=0)
+		return -ERESTARTSYS;
+
 	if (( buf == NULL) ||  (*buf == 0)) {
-      return -ENOMEM;
+		ret=producerDec();
+		if (ret!=0)
+			return -ERESTARTSYS;
+      		return -ENOMEM;
 	}
+
 	if (down_interruptible(&full)){
 		printk(KERN_ALERT "FIFO ERROR:Write access failed.");
+		ret=producerDec();
+		if (ret!=0)
+			return -ERESTARTSYS;
 		return -ERESTARTSYS;
 	}
 	else {
 		if (down_interruptible(&mutex)){
 			printk(KERN_ALERT "FIFO ERROR: Mutual Exclusive access failed from write module");
 			up(&full);
+			ret=producerDec();
+			if (ret!=0)
+				return -ERESTARTSYS;
 			return -ERESTARTSYS;
 		}
 		else {
@@ -249,12 +295,18 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 			if(ret<0) {
 				up(&mutex);
 				up(&full);
+				ret=producerDec();
+				if (ret!=0)
+					return -ERESTARTSYS;				
 				return ret;
 			}
 			printk(KERN_INFO "FIFO:Fifo module is being written.\n");
       push = push + 1;
 			up(&mutex);
 			up(&empty);
+			ret=producerDec();
+			if (ret!=0)
+				return -ERESTARTSYS;
 			/** Successful execution of write callback with buffer count.*/
 			return count;
 		}
@@ -341,10 +393,10 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 	if(!finished_config){
 		/** Flag set to Completed marking EOF.*/
 		  finished_config = 1;
-  int num_items = tail - head + 1;
+  		int num_items = tail - head + 1;
 	int num_empty_slots = mem_alloc_size - num_items;
-	int fill_percentage = (num_items/mem_alloc_size)*100;
-	ret = sprintf(buf,"Allocated Size: %d\nNumber of items stored: %d\nNumber of empty slots: %d\nPercentage of filled slots: %d\nNumber of insertions performed: %d\nNumber of removals performed: %d\n",mem_alloc_size,num_items,num_empty_slots,fill_percentage,push,pop);
+	int fill_percentage = (num_items*100)/mem_alloc_size;
+	ret = sprintf(buf,"Allocated Size: %d\nNumber of items stored: %d\nNumber of empty slots: %d\nPercentage of filled slots: %d \nNumber of insertions performed: %d\nNumber of removals performed: %d\n",mem_alloc_size,num_items,num_empty_slots,fill_percentage,push,pop);
 		if(ret < 0) {
 			/** Memory allocation problem */
 			return -ENOMEM;
@@ -588,6 +640,13 @@ static int __init fifo_module_init(void)
 	sema_init(&empty,0);
 	sema_init(&full,mem_alloc_size);
 
+	sema_init(&producer_mutex,1);
+	sema_init(&consumer_mutex,1);
+	
+	/** Initialize producer consumer counters */
+	producer_ctr=0;
+	consumer_ctr=0;
+
 
 	/** Successful execution of initialization method. */
 	return 0;
@@ -741,6 +800,58 @@ int queueAlloc(int mem_size) {
 	tail = -1;
 
 	/** Successful execution of Queue Allocation method*/
+	return 0;
+}
+
+int producerInc(void) {
+
+	if (down_interruptible(&producer_mutex)){
+		
+		printk(KERN_ALERT "FIFO ERROR:Producer counter Increment Mutex Failed");
+		return -ERESTARTSYS;
+	}
+
+	producer_ctr++;
+	up(&producer_mutex);
+	return 0;
+}
+
+int producerDec(void) {
+
+	if (down_interruptible(&producer_mutex)){
+		
+		printk(KERN_ALERT "FIFO ERROR:Producer counter Decrement Mutex Failed");
+		return -ERESTARTSYS;
+	}
+
+	producer_ctr--;
+	up(&producer_mutex);
+	return 0;
+}
+
+int consumerInc(void) {
+
+	if (down_interruptible(&consumer_mutex)){
+		
+		printk(KERN_ALERT "FIFO ERROR:Consumer counter Increment Mutex Failed");
+		return -ERESTARTSYS;
+	}
+
+	consumer_ctr++;
+	up(&consumer_mutex);
+	return 0;
+}
+
+int consumerDec(void) {
+
+	if (down_interruptible(&consumer_mutex)){
+		
+		printk(KERN_ALERT "FIFO ERROR:Consumer counter Decrement Mutex Failed");
+		return -ERESTARTSYS;
+	}
+
+	consumer_ctr--;
+	up(&consumer_mutex);
 	return 0;
 }
 /** Initializing the kernel module init with custom init method */
