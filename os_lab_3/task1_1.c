@@ -242,6 +242,11 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 			tail = tail+1;
 			printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);	
 			ret = setQueueItemWithString(buf);
+			if(ret<0) {
+				up(&mutex);
+				up(&full);
+				return ret;
+			}
 			printk(KERN_INFO "FIFO:Fifo module is being written.\n");
 
 			up(&mutex);
