@@ -156,7 +156,7 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 					finished_fifo = 1;
 					
 					kfree(queue[head].msg);      //added
-					if(head==mem_alloc_size) {
+					if(head==(mem_alloc_size-1)) {
 						head = 0;
 					}
 					else if(head==tail) {
@@ -166,7 +166,7 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 					else {
 						head = head+1;
 					}
-					head = (head+1)%mem_alloc_size;
+					//head = (head+1)%mem_alloc_size;
 					
 					up(&mutex);
 					up(&full);
