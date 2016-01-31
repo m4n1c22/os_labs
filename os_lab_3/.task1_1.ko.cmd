@@ -1,1 +1,0 @@
-cmd_/home/gamer/Documents/os_labs/os_lab_3/task1_1.ko := ld -r -m elf_x86_64 -T ./scripts/module-common.lds --build-id  -o /home/gamer/Documents/os_labs/os_lab_3/task1_1.ko /home/gamer/Documents/os_labs/os_lab_3/task1_1.o /home/gamer/Documents/os_labs/os_lab_3/task1_1.mod.o
