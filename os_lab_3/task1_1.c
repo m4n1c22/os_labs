@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/semaphore.h>
-
+#include <linux/time.h>
 
 MODULE_AUTHOR("Team Mango");
 MODULE_DESCRIPTION("Lab Solution Task 1.1");
@@ -233,6 +233,7 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 {
 	int ret;
+	struct timeval timeval_obj;
 	printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);
 
 	ret=producerInc();
@@ -291,7 +292,13 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 			}
 			tail = tail+1;
 			printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);
-			ret = setQueueItemWithString(buf);
+			//ret = setQueueItemWithString(buf);
+			do_gettimeofday(&timeval_obj);
+			queue[tail].qid = push;
+			queue[tail].time = timeval_obj.tv_sec;
+			queue[tail].msg = kmalloc(strlen(buf),GFP_KERNEL);
+			ret=sprintf(queue[tail].msg,buf);
+			
 			if(ret<0) {
 				up(&mutex);
 				up(&full);
@@ -301,7 +308,7 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 				return ret;
 			}
 			printk(KERN_INFO "FIFO:Fifo module is being written.\n");
-      push = push + 1;
+			push = push + 1;
 			up(&mutex);
 			up(&empty);
 			ret=producerDec();
@@ -632,7 +639,7 @@ static int __init fifo_module_init(void)
 	tail = -1;
 
 	/** Initializing push and pop counters*/
-  push = 0;
+	push = 0;
 	pop = 0;
 	/** Initializing the semaphores */
 
