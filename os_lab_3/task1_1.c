@@ -82,6 +82,10 @@ static int pop;
 static int producer_ctr;
 static int consumer_ctr;
 
+static int num_items;
+static int num_empty_slots;
+static int fill_percentage;
+
 /** Parameters passed to Module */
 static int fifo_size;
 
@@ -165,19 +169,7 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 				return -ERESTARTSYS;
 		}
 		else {
-			/**
-				Condition to check if the FIFO Queue is empty or in
-				underflow state
-			*/
-			/*if(head==-1) {
-				printk(KERN_ALERT "FIFO ERROR:Fifo module cannot be read -> Underflow state.\n");
-				printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);
-				/** Erroneous Data */
-				/*up(&empty);
-				up(&mutex);
-				return -ENODATA;
-			}*/
-			//else {
+			
 					printk(KERN_INFO "FIFO:queue[head].msg = %s\n", queue[head].msg);
 					ret_buf = sprintf(buf,"%d, %lld, %s",queue[head].qid, queue[head].time, queue[head].msg); //queueDataItemAsString(queue[head]));
 					if(ret_buf <0) {
@@ -264,25 +256,7 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 		}
 		else {
 
-			/**
-				Condition to check if the allocation is exceeded. To check
-				Overflow state is achieved.
-			*/
-
-			//if(((head==0)&&(tail==mem_alloc_size-1))||((tail+1) == head)) {
-				/** Overflow state block */
-				//printk(KERN_ALERT "FIFO ERROR:Fifo module in overflow state.\n");
-				//printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);
-				/** Buffer overflow problem */
-				//up(&mutex);
-				//return -ENOBUFS;
-			//}
-
-			/*ret = sprintf((queue+strlen(queue)),buf);
-			if(ret<0) {
-				/** Memory allocation problem */
-			/*	return -ENOMEM;
-			}*/
+			
 			if((head == -1)&&(tail==-1)) {
 				head = 0;
 			}
@@ -301,7 +275,7 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 				return ret;
 			}
 			printk(KERN_INFO "FIFO:Fifo module is being written.\n");
-      push = push + 1;
+      			push = push + 1;
 			up(&mutex);
 			up(&empty);
 			ret=producerDec();
@@ -328,17 +302,7 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 */
 static int fifo_module_open(struct inode * inode, struct file * file)
 {
-	/** Condition to check if the device is already in use. */
-	//if(device_open) {
-		/** Device Busy Error */
-		//return -EBUSY;
-	//}
-
-	/**
-	    Increment and using the device_open variable as a
-	    synchronization mechanism.
-	*/
-	//device_open++;
+	
 
 	/** Finished flag set to false indicating file is just opened.*/
 	finished_fifo = 0;
@@ -393,10 +357,23 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 	if(!finished_config){
 		/** Flag set to Completed marking EOF.*/
 		  finished_config = 1;
-  		int num_items = tail - head + 1;
-	int num_empty_slots = mem_alloc_size - num_items;
-	int fill_percentage = (num_items*100)/mem_alloc_size;
-	ret = sprintf(buf,"Allocated Size: %d\nNumber of items stored: %d\nNumber of empty slots: %d\nPercentage of filled slots: %d \nNumber of insertions performed: %d\nNumber of removals performed: %d\n",mem_alloc_size,num_items,num_empty_slots,fill_percentage,push,pop);
+
+	if(head==-1 && tail==-1) {
+		num_items=0;
+		num_empty_slots=mem_alloc_size;
+		fill_percentage=0;
+		queue[head].qid=0;
+		queue[tail].qid=0;
+		
+		}
+
+	else {
+  	num_items = tail - head + 1;
+	num_empty_slots = mem_alloc_size - num_items;
+	fill_percentage = (num_items*100)/mem_alloc_size;
+	}
+	ret = sprintf(buf,"Allocated Size: %d\nNumber of items stored: %d\nNumber of empty slots: %d\nPercentage of filled slots: %d \nNumber of insertions performed: %d\nNumber of removals performed: %d\nNo.of Producers: %d\nNo.of Consumers: %d\nFirst Data Item Sequence No:%d\nLatest Data Item Sequence No:%d\n", mem_alloc_size,num_items,num_empty_slots,fill_percentage,push,pop,producer_ctr,consumer_ctr,queue[head].qid,queue[tail].qid);
+
 		if(ret < 0) {
 			/** Memory allocation problem */
 			return -ENOMEM;
@@ -405,19 +382,7 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 		return ret;
 	}
 
-	/** Condition to check if EOF is reached. */
-	/*if(!finished_config){
-		/** Flag set to Completed marking EOF.*/
-		/*finished_config = 1;
-
-		ret = sprintf(buf,"Allocated Size: %d\nFree Size: %d\nTotal Size: %d\n",strlen(queue),mem_alloc_size-strlen(queue),mem_alloc_size);
-		if(ret < 0) {
-			/** Memory allocation problem */
-			/*return -ENOMEM;
-		}
-		/** Successful execution of read callback with some bytes*/
-		/*return ret;
-	}
+	
 	/** Successful execution of read callback with EOF reached.*/
 	return 0;
 }
@@ -440,37 +405,7 @@ static ssize_t fifo_config_module_write(struct file *file, const char *buf, size
 	int ret;
 	printk(KERN_INFO "FIFO:Fifo config module is being written.\n");
 
-	/** Condition to check if queue in use or not.*/
-	/*if(strlen(queue)) {
-		printk(KERN_ALERT "FIFO ERROR:Fifo config module cannot be written.\n");
-
-		/** DEVICE BUSY ERROR */
-		//return -EBUSY;
-	//}
-
-	/** Converting the string value to a number*/
-	//ret = kstrtol(buf,BASE_10,&res);
-	//if(ret < 0) {
-		/** Invalid argument in conversion error.*/
-		//return -EINVAL;
-//	}
-
-	/** Condition to check if the allocation is with in the limits.*/
-	//if(IN_RANGE(res)) {
-		/**
-		    Condition to check if the queue allocation encountered any
-		    problems.
-		*/
-		//if(queueAlloc(res)!=0) {
-			/** Memory allocation problem */
-			/*return -ENOMEM;
-		}
-	}
-	else {
-		printk(KERN_ALERT "FIFO ERROR:Fifo Queue cannot be allocated.\n");
-		/** Memory allocation limit problem */
-	/*	return -ENOMEM;
-	}
+	
 	/** Successful execution of write callback with buffer count.*/
 	return count;
 }
@@ -632,10 +567,10 @@ static int __init fifo_module_init(void)
 	tail = -1;
 
 	/** Initializing push and pop counters*/
-  push = 0;
+  	push = 0;
 	pop = 0;
-	/** Initializing the semaphores */
 
+	/** Initializing the semaphores */
 	sema_init(&mutex,1);
 	sema_init(&empty,0);
 	sema_init(&full,mem_alloc_size);
@@ -647,6 +582,9 @@ static int __init fifo_module_init(void)
 	producer_ctr=0;
 	consumer_ctr=0;
 
+	num_items = 0;
+	num_empty_slots = fifo_size;
+	fill_percentage = 0;
 
 	/** Successful execution of initialization method. */
 	return 0;
