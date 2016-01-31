@@ -81,6 +81,8 @@ static int pop;
 /** Producer Consumer counters */
 static int producer_ctr;
 static int consumer_ctr;
+static int usr_producer_ctr;
+static int usr_consumer_ctr;
 
 static int num_items;
 static int num_empty_slots;
@@ -98,6 +100,10 @@ static struct semaphore full;
 static struct semaphore producer_mutex;
 static struct semaphore consumer_mutex;
 
+static struct semaphore usr_producer_mutex;
+static struct semaphore usr_consumer_mutex;
+
+
 
 /** Custom Function prototype */
 int queueAlloc(int mem_size);
@@ -110,6 +116,11 @@ int producerInc(void);
 int producerDec(void);
 int consumerInc(void);
 int consumerDec(void);
+
+int usrproducerInc(void);
+int usrproducerDec(void);
+int usrconsumerInc(void);
+int usrconsumerDec(void);
 
 /** fifo module prototypes */
 static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos);
@@ -130,16 +141,32 @@ EXPORT_SYMBOL_GPL(fifo_write);
 */
 static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
+	int ret; 
+	int ret_fiforead;
+
+	ret=usrconsumerInc();
+	if (ret!=0)
+		return -ERESTARTSYS;
 
 	if(finished_fifo) {
 			
+	ret=usrconsumerDec();
+	if (ret!=0)
+		return -ERESTARTSYS;
 		/** Successful execution of read callback with EOF reached.*/
-			return 0;
+		return 0;
 
 	}
 	/** Flag set to Completed marking EOF.*/
 	finished_fifo = 1;
-	return fifo_read(buf,count,ppos);
+	
+	 ret_fiforead=fifo_read(buf,count,ppos);
+	
+	ret=usrconsumerDec();
+	if (ret!=0)
+		return -ERESTARTSYS;
+
+	return ret_fiforead;
 }
 static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 {
@@ -219,8 +246,20 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 			read only(FIFO1) and other being write only(FIFO0).
 */
 static ssize_t fifo_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
-{
-	return fifo_write(buf,count,ppos);
+{	
+	int ret;
+	int ret_fifowrite;
+	ret=usrproducerInc();
+	if (ret!=0)
+		return -ERESTARTSYS;
+	
+	ret_fifowrite= fifo_write(buf,count,ppos);
+
+	ret=usrproducerDec();
+	if (ret!=0)
+		return -ERESTARTSYS;
+
+	return ret_fifowrite;
 }
 static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 {
@@ -382,7 +421,7 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 	num_empty_slots = mem_alloc_size - num_items;
 	fill_percentage = (num_items*100)/mem_alloc_size;
 	}
-	ret = sprintf(buf,"Allocated Size: %d\nNumber of items stored: %d\nNumber of empty slots: %d\nPercentage of filled slots: %d \nNumber of insertions performed: %d\nNumber of removals performed: %d\nNo.of Producers: %d\nNo.of Consumers: %d\nFirst Data Item Sequence No:%d\nLatest Data Item Sequence No:%d\n", mem_alloc_size,num_items,num_empty_slots,fill_percentage,push,pop,producer_ctr,consumer_ctr,queue[head].qid,queue[tail].qid);
+	ret = sprintf(buf,"Allocated Size: %d\nNumber of items stored: %d\nNumber of empty slots: %d\nPercentage of filled slots: %d \nNumber of insertions performed: %d\nNumber of removals performed: %d\nActive No.of Producers: %d\nActive No.of Consumers: %d\nActive User level Producers: %d\nActive User level Consumers: %d\nFirst Data Item Sequence No:%d\nLatest Data Item Sequence No:%d\n", mem_alloc_size,num_items,num_empty_slots,fill_percentage,push,pop,producer_ctr,consumer_ctr,usr_producer_ctr,usr_consumer_ctr,queue[head].qid,queue[tail].qid);
 
 		if(ret < 0) {
 			/** Memory allocation problem */
@@ -588,10 +627,16 @@ static int __init fifo_module_init(void)
 
 	sema_init(&producer_mutex,1);
 	sema_init(&consumer_mutex,1);
+
+	sema_init(&usr_producer_mutex,1);
+	sema_init(&usr_consumer_mutex,1);
 	
 	/** Initialize producer consumer counters */
 	producer_ctr=0;
 	consumer_ctr=0;
+
+	usr_producer_ctr=0;
+	usr_consumer_ctr=0;
 
 	num_items = 0;
 	num_empty_slots = fifo_size;
@@ -801,6 +846,58 @@ int consumerDec(void) {
 
 	consumer_ctr--;
 	up(&consumer_mutex);
+	return 0;
+}
+
+int usrproducerInc(void) {
+
+	if (down_interruptible(&usr_producer_mutex)){
+		
+		printk(KERN_ALERT "FIFO ERROR:Producer counter Increment Mutex Failed");
+		return -ERESTARTSYS;
+	}
+
+	usr_producer_ctr++;
+	up(&usr_producer_mutex);
+	return 0;
+}
+
+int usrproducerDec(void) {
+
+	if (down_interruptible(&usr_producer_mutex)){
+		
+		printk(KERN_ALERT "FIFO ERROR:Producer counter Decrement Mutex Failed");
+		return -ERESTARTSYS;
+	}
+
+	usr_producer_ctr--;
+	up(&usr_producer_mutex);
+	return 0;
+}
+
+int usrconsumerInc(void) {
+
+	if (down_interruptible(&usr_consumer_mutex)){
+		
+		printk(KERN_ALERT "FIFO ERROR:Consumer counter Increment Mutex Failed");
+		return -ERESTARTSYS;
+	}
+
+	usr_consumer_ctr++;
+	up(&usr_consumer_mutex);
+	return 0;
+}
+
+int usrconsumerDec(void) {
+
+	if (down_interruptible(&usr_consumer_mutex)){
+		
+		printk(KERN_ALERT "FIFO ERROR:Consumer counter Decrement Mutex Failed");
+		return -ERESTARTSYS;
+	}
+
+	usr_consumer_ctr--;
+	up(&usr_consumer_mutex);
 	return 0;
 }
 /** Initializing the kernel module init with custom init method */
