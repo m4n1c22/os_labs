@@ -33,7 +33,7 @@ void produce(int argc, char **argv){
 	strcpy(msg,argv[3]);
 	strcpy(instance,argv[4]);
 
-	while(x  < 10){
+	while(1){
 		fd = open("/dev/deeds_fifo", O_WRONLY);
 
 		if(fd < 0){
@@ -69,7 +69,7 @@ void consume(int argc, char **argv){
 	int nbytes;
 	strcpy(instance,argv[3]);
 	
-	while(x  < 10){
+	while(1){
 		fd = open("/dev/deeds_fifo", O_RDONLY);
 
 		if(fd < 0){
