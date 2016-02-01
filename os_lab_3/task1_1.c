@@ -189,14 +189,14 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 	Function Type : Kernel Internal Module Method
 	Description   : Method is invoked internally by the 
 					fifo_module_read() and externally from other kernel
-					modules such as producer modules loaded.
+					modules such as consumer modules loaded.
 */
 static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 {
 	/** return value storage variables */
 	
 	int ret; /** return value dealing with safe operation methods */
-	int ret_buf;
+	int ret_buf; /** return value after performing a write on read buffer. */
 
 	printk(KERN_INFO "FIFO:Fifo module is being read.\n");
 
@@ -209,9 +209,14 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 		return -ERESTARTSYS;
 	}
 	
+	/** 
+		Condition to verify the down operation on the counting semaphore
+		empty. Execution of a successful down operation in empty
+		semaphore indicates the queue is safe from Underflow error.
+	*/
 	if (down_interruptible(&empty)){
 		
-		printk(KERN_ALERT "FIFO ERROR:Fifo Read access failed");
+		printk(KERN_ALERT "FIFO ERROR:Fifo Read access failed with Underflow.");
 		/** Performing a safe Increment of Consumer counter*/		
 		ret=consumerDec();
 		/** Verifying if Mutual exclusion inhibits the propagation.*/
@@ -223,8 +228,22 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 		return -ERESTARTSYS;
 	}
 	else {
+		
+		/** 
+			Condition to verify the down operation on the binary semaphore
+			mutex. Entry into a Mutually exclusive block is granted by
+			having a successful lock with the mentioned semaphore.
+			mutex semaphore provides a safe access to the following
+			critical section.
+		*/
 		if(down_interruptible(&mutex)){
+			
 			printk(KERN_ALERT "FIFO ERROR:Mutual Exclusive position access failed from read module");
+			/** 
+				Performing an up operation on counting semaphore empty.
+				Reseting the empty semaphore to original state. Thereby,
+				performing transaction rollback.
+			*/
 			up(&empty);
 			/** Performing a safe Increment of Consumer counter*/		
 			ret=consumerDec();
@@ -238,27 +257,66 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 		}
 		else {
 			
-			printk(KERN_INFO "FIFO:queue[head].msg = %s\n", queue[head].msg);
+			/** 
+				Loading the read buffer with data item contained in the
+				head index. 
+			*/
 			ret_buf = sprintf(buf,"%d, %lld, %s",queue[head].qid, queue[head].time, queue[head].msg);
+			/** Verifying if the read buffer is successfully loaded.*/
 			if(ret_buf <0) {
 				/** Memory allocation problem */
 				return -ENOMEM;
 			}
 			
-
+			/** 
+				Executing memory deallocation of message string from
+				the queue at the head index.
+			*/
 			kfree(queue[head].msg);
+			/**
+				Condition check for head pointing to maximum index
+				location in the queue. If it is the case, change the
+				head to point to the first allocation index indicating
+				a circular queue operation.
+			*/
 			if(head==(mem_alloc_size-1)) {
+				/** 
+					head points to first physical index in circular
+					queue.
+				*/
 				head = 0;
 			}
+			/** 
+				Verifying if the head and tail pointers are in same
+				index location. Invalidate the values therefore, making
+				the queue empty.
+			*/
 			else if(head==tail) {
+				/** Invalidating head index. */
 				head = -1;
+				/** Invalidating tail index. */
 				tail = -1;
 			}
 			else {
+				/** 
+					Incrementing the head pointer to next location in
+					the queue.
+				*/
 				head = head+1;
 			}
+			/** Incrementing the number of items popped or deleted. */
 			pop = pop + 1;
+			/** 
+				Performing an up operation on mutex. Such an operation
+				indicates the critical section is released for other
+				processes/threads.
+			*/
 			up(&mutex);
+			/** 
+				Performing an up operation on counting semaphore full.
+				Such an operation denotes a increase in empty slots in
+				the queue.
+			*/
 			up(&full);
 			
 			/** Performing a safe Increment of Consumer counter*/		
@@ -279,33 +337,54 @@ static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 	Function Name : fifo_module_write
 	Function Type : Kernel Callback Method
 	Description   : Method is invoked whenever the fifo device files are
-			written. This callback method is triggered when a
-			write operation performed on the devices register to
-			this file operation object.
-			FIFO Devices are allocated with one device being
-			read only(FIFO1) and other being write only(FIFO0).
+					written. This callback method is triggered when a
+					write operation performed on the devices register to
+					this file operation object.
 */
 static ssize_t fifo_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {	
-	int ret;
-	int ret_fifowrite;
+	/** return value storage variables */
+	int ret; /** return value dealing with safe operation methods */
+	int ret_fifowrite; /** return value*/
+
+	/** Performing a safe Increment of User Level Producer counter */
 	ret=userLevelProducerInc();
-	if (ret!=0)
-		return -ERESTARTSYS;
 	
+	/** Verifying if Mutual exclusion inhibits the propagation.*/
+	if (ret!=0) {
+		/** Issue a restart of syscall which was supposed to be executed.*/
+		return -ERESTARTSYS;
+	}
+	
+	/** Calling the internal fifo_write() method call.*/
 	ret_fifowrite= fifo_write(buf,count,ppos);
 
+	/** Performing a safe Decrement of User Level Producer counter*/
 	ret=userLevelProducerDec();
-	if (ret!=0)
+	/** Verifying if Mutual exclusion inhibits the propagation.*/
+	if (ret!=0) {
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
-
+	}
+	
+	/** Successful execution of write callback*/
 	return ret_fifowrite;
 }
+
+/**
+	Function Name : fifo_write()
+	Function Type : Kernel Internal Module Method
+	Description   : Method is invoked internally by the 
+					fifo_module_write() and externally from other kernel
+					modules such as producer modules loaded.
+*/
 static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 {
-	int ret;
+	/** return value storage variables */
+	int ret; /** return value dealing with safe operation methods */
+	
+	/** Timeval object for finding the current time */
 	struct timeval timeval_obj;
-	printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);
 
 	ret=producerInc();
 	if (ret!=0)
@@ -315,7 +394,7 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 		ret=producerDec();
 		if (ret!=0)
 			return -ERESTARTSYS;
-      		return -ENOMEM;
+      	return -ENOMEM;
 	}
 
 	if (down_interruptible(&full)){
