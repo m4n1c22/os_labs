@@ -14,7 +14,7 @@
 #include <string.h>
 
 void print_usage(){
-	printf("Usage: task -p <rate> <message> | task -c <rate>\n");
+	printf("Usage: task -p <rate> <message> <instance_name>| task -c <rate> <instance_name>\n");
 	exit(1);
 	}
 
@@ -23,17 +23,17 @@ void produce(int argc, char **argv){
 	int x=0;
 	int i;
 
-	if(argc != 4){
+	if(argc != 5){
 		print_usage();
 		}		
 
 	int rate = atoi(argv[2]);
+	char instance[20];
 	char msg[20];
 	strcpy(msg,argv[3]);
+	strcpy(instance,argv[4]);
 
-	printf("rate: %d\nMessage: %s\n",rate,msg);
-
-	while(x  < 2){
+	while(1){
 		fd = open("/dev/deeds_fifo", O_WRONLY);
 
 		if(fd < 0){
@@ -44,9 +44,10 @@ void produce(int argc, char **argv){
 			perror("Unable to Write: \n");
 			exit(1);
 			}
+		printf("%s inserted message %s\n",instance,msg);
 		close(fd);
 		x++;
-		sleep(60/rate);
+		sleep(1/rate);
 		}
 	return;
 	}
@@ -58,17 +59,17 @@ void consume(int argc, char **argv){
 	int x=0;
 	int i;
 
-	if(argc != 3){
+	if(argc != 4){
 		print_usage();
 		}
 
 	int rate = atoi(argv[2]);
 	char msg[20];
+	char instance[20];
 	int nbytes;
-
-	printf("rate: %d\n",rate);
-
-	while(x  < 2){
+	strcpy(instance,argv[3]);
+	
+	while(1){
 		fd = open("/dev/deeds_fifo", O_RDONLY);
 
 		if(fd < 0){
@@ -79,10 +80,10 @@ void consume(int argc, char **argv){
 			perror("Unable to Write: \n");
 			exit(1);
 			}
-		printf("%s\n",msg);
+		printf("%s consumed message %s\n",instance,msg);
 		close(fd);
 		x++;
-		sleep(60/rate);
+		sleep(1/rate);
 		}
 
 	return;
