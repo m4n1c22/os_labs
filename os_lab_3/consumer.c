@@ -2,6 +2,10 @@
 	\file	:	consumer.c
 	\author	: 	Team Mango
 	\brief	:	Consumer LKM
+				The kernel module which acts as a consumer in the 
+				producer-consumer problem. The module loads in with a 
+				rate of outflow and instance name.				
+
 */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -11,7 +15,7 @@ MODULE_AUTHOR("Team Mango");
 MODULE_DESCRIPTION("Lab Solution Task 2 Consumer LKM");
 MODULE_LICENSE("GPL");
 
-/** Parameter passed into the module*/
+/** */
 static int rate= 3;
 static char * instance = "consumer_inst";
 

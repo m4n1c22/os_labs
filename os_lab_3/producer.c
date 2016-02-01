@@ -1,7 +1,10 @@
 /**
 	\file	:	producer.c
 	\author	: 	Team Mango
-	\brief	:	Producer LKM
+	\brief	:	Producer LKM. 
+				The kernel module which acts as a producer in the 
+				producer-consumer problem. The module loads in with a 
+				rate of inflow, message and instance name.				
 */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -11,11 +14,13 @@ MODULE_AUTHOR("Team Mango");
 MODULE_DESCRIPTION("Lab Solution Task 2 Producer LKM");
 MODULE_LICENSE("GPL");
 
-/** Parameter passed into the module*/
+/** Parameters passed into the module*/
+
+/** Rate of Inflow into the queue */
 static int rate= 5;
-
+/** Message stored in the queue*/
 static char * msg = "default";
-
+/** Instance name of the producer */
 static char * instance = "producer_inst";
 
 struct workqueue_struct *producer_wq;
