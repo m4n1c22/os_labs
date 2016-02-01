@@ -28,7 +28,7 @@ MODULE_LICENSE("GPL");
 
 #define LOWER_LIMIT         4
 #define UPPER_LIMIT         4096
-#define DEFAULT_MEM_SIZE    8
+#define DEFAULT_MEM_SIZE    32
 
 #define IN_RANGE(MEM)       ((MEM>=LOWER_LIMIT)&&(MEM<=UPPER_LIMIT))
 
@@ -40,7 +40,6 @@ MODULE_LICENSE("GPL");
 #define MAJOR_NUM          250
 #define MINOR_NUM_FIFO     0
 #define CLASS_NAME         "fifo_class"
-#define IS_MINOR(A,B)      (A==B)
 
 /** Proc FS File Object */
 static struct proc_dir_entry *fifo_config_file_entry;
@@ -57,7 +56,6 @@ static int mem_alloc_size;
 /** Flags */
 static int finished_config;
 static int finished_fifo;
-static int device_open;
 
 /** User Defined Data Item Structure */
 struct data_item {
@@ -81,9 +79,10 @@ static int pop;
 /** Producer Consumer counters */
 static int producer_ctr;
 static int consumer_ctr;
-static int usr_producer_ctr;
-static int usr_consumer_ctr;
+static int user_level_producer_ctr;
+static int user_level_consumer_ctr;
 
+/** FIFO Statistics Variables */
 static int num_items;
 static int num_empty_slots;
 static int fill_percentage;
@@ -100,29 +99,28 @@ static struct semaphore full;
 static struct semaphore producer_mutex;
 static struct semaphore consumer_mutex;
 
-static struct semaphore usr_producer_mutex;
-static struct semaphore usr_consumer_mutex;
+static struct semaphore user_level_producer_mutex;
+static struct semaphore user_level_consumer_mutex;
 
-
-
-/** Custom Function prototype */
-int queueAlloc(int mem_size);
-
-char* queueDataItemAsString(struct data_item item);
-
-int setQueueItemWithString(const char *buf); 
-
+/** 
+	Safe Incremental/Decremental Functions for all producers 
+	and consumers.
+*/
 int producerInc(void);
 int producerDec(void);
 int consumerInc(void);
 int consumerDec(void);
 
-int usrproducerInc(void);
-int usrproducerDec(void);
-int usrconsumerInc(void);
-int usrconsumerDec(void);
+/** 
+	Safe Incremental/Decremental Functions for user-level producers 
+	and consumers.
+*/
+int userLevelProducerInc(void);
+int userLevelProducerDec(void);
+int userLevelConsumerInc(void);
+int userLevelConsumerDec(void);
 
-/** fifo module prototypes */
+/** Basic FIFO Method Prototypes */
 static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos);
 static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos);
 
@@ -141,96 +139,138 @@ EXPORT_SYMBOL_GPL(fifo_write);
 */
 static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
-	int ret; 
-	int ret_fiforead;
+	/** return value storage variables */
+	
+	int ret; /** return value dealing with safe operation methods */
+	int ret_fiforead; /** return value*/
 
-	ret=usrconsumerInc();
-	if (ret!=0)
+	/** Performing a safe Increment of User Level Consumer counter */
+	ret=userLevelConsumerInc();
+	
+	/** Verifying if Mutual exclusion inhibits the propagation.*/
+	if (ret!=0) {
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
-
+	}	
+	
+	/** Condition to check if the EOF is reached.*/
 	if(finished_fifo) {
-			
-	ret=usrconsumerDec();
-	if (ret!=0)
-		return -ERESTARTSYS;
+		/** Performing a safe Decrement of User Level Consumer counter*/
+		ret=userLevelConsumerDec();
+		/** Verifying if Mutual exclusion inhibits the propagation.*/
+		if (ret!=0) {
+			/** Issue a restart of syscall which was supposed to be executed.*/
+			return -ERESTARTSYS;
+		}
 		/** Successful execution of read callback with EOF reached.*/
 		return 0;
-
 	}
+	
 	/** Flag set to Completed marking EOF.*/
 	finished_fifo = 1;
 	
-	 ret_fiforead=fifo_read(buf,count,ppos);
+	/** Calling the internal fifo_read() method call.*/
+	ret_fiforead=fifo_read(buf,count,ppos);
 	
-	ret=usrconsumerDec();
-	if (ret!=0)
+	/** Performing a safe Decrement of User Level Consumer counter*/
+	ret=userLevelConsumerDec();
+	
+	/** Verifying if Mutual exclusion inhibits the propagation.*/
+	if (ret!=0) {
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
-
+	}
+	/** Successful execution of read callback with some bytes*/
 	return ret_fiforead;
 }
+
+/**
+	Function Name : fifo_read()
+	Function Type : Kernel Internal Module Method
+	Description   : Method is invoked internally by the 
+					fifo_module_read() and externally from other kernel
+					modules such as producer modules loaded.
+*/
 static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos)
 {
-	int ret;
+	/** return value storage variables */
+	
+	int ret; /** return value dealing with safe operation methods */
 	int ret_buf;
 
 	printk(KERN_INFO "FIFO:Fifo module is being read.\n");
-		
+
+	/** Performing a safe Increment of Consumer counter*/		
 	ret=consumerInc();
-	if (ret!=0)
+
+	/** Verifying if Mutual exclusion inhibits the propagation.*/
+	if (ret!=0) {
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
+	}
 	
 	if (down_interruptible(&empty)){
+		
 		printk(KERN_ALERT "FIFO ERROR:Fifo Read access failed");
+		/** Performing a safe Increment of Consumer counter*/		
 		ret=consumerDec();
-		if (ret!=0)
+		/** Verifying if Mutual exclusion inhibits the propagation.*/
+		if (ret!=0) {
+			/** Issue a restart of syscall which was supposed to be executed.*/
 			return -ERESTARTSYS;
+		}
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
 	}
 	else {
 		if(down_interruptible(&mutex)){
-				printk(KERN_ALERT "FIFO ERROR:Mutual Exclusive position access failed from read module");
-				up(&empty);
-				ret=consumerDec();
-				if (ret!=0)
-					return -ERESTARTSYS;
+			printk(KERN_ALERT "FIFO ERROR:Mutual Exclusive position access failed from read module");
+			up(&empty);
+			/** Performing a safe Increment of Consumer counter*/		
+			ret=consumerDec();
+			/** Verifying if Mutual exclusion inhibits the propagation.*/
+			if (ret!=0) {
+				/** Issue a restart of syscall which was supposed to be executed.*/
 				return -ERESTARTSYS;
+			}
+			/** Issue a restart of syscall which was supposed to be executed.*/
+			return -ERESTARTSYS;
 		}
 		else {
 			
-					printk(KERN_INFO "FIFO:queue[head].msg = %s\n", queue[head].msg);
-					ret_buf = sprintf(buf,"%d, %lld, %s",queue[head].qid, queue[head].time, queue[head].msg); //queueDataItemAsString(queue[head]));
-					if(ret_buf <0) {
-						/** Memory allocation problem */
-						return -ENOMEM;
-					}
-					
+			printk(KERN_INFO "FIFO:queue[head].msg = %s\n", queue[head].msg);
+			ret_buf = sprintf(buf,"%d, %lld, %s",queue[head].qid, queue[head].time, queue[head].msg);
+			if(ret_buf <0) {
+				/** Memory allocation problem */
+				return -ENOMEM;
+			}
+			
 
-					kfree(queue[head].msg);      //added
-					if(head==(mem_alloc_size-1)) {
-						head = 0;
-					}
-					else if(head==tail) {
-						head = -1;
-						tail = -1;
-					}
-					else {
-						head = head+1;
-					}
-					//head = (head+1)%mem_alloc_size;
-					pop = pop + 1;
-					up(&mutex);
-					up(&full);
+			kfree(queue[head].msg);
+			if(head==(mem_alloc_size-1)) {
+				head = 0;
+			}
+			else if(head==tail) {
+				head = -1;
+				tail = -1;
+			}
+			else {
+				head = head+1;
+			}
+			pop = pop + 1;
+			up(&mutex);
+			up(&full);
+			
+			/** Performing a safe Increment of Consumer counter*/		
+			ret=consumerDec();
+			/** Verifying if Mutual exclusion inhibits the propagation.*/
+			if (ret!=0) {
+				/** Issue a restart of syscall which was supposed to be executed.*/
+				return -ERESTARTSYS;
+			}
 
-					ret=consumerDec();
-					if (ret!=0)
-						return -ERESTARTSYS;
-
-					/** Successful execution of read callback with some bytes*/
-					return ret_buf;
-				//}
-//				up(&mutex);
-//				up(&empty);
-			//}
+			/** Successful execution of read callback with some bytes*/
+			return ret_buf;
 		}
 	}
 }
@@ -249,13 +289,13 @@ static ssize_t fifo_module_write(struct file *file, const char *buf, size_t coun
 {	
 	int ret;
 	int ret_fifowrite;
-	ret=usrproducerInc();
+	ret=userLevelProducerInc();
 	if (ret!=0)
 		return -ERESTARTSYS;
 	
 	ret_fifowrite= fifo_write(buf,count,ppos);
 
-	ret=usrproducerDec();
+	ret=userLevelProducerDec();
 	if (ret!=0)
 		return -ERESTARTSYS;
 
@@ -305,7 +345,6 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 			}
 			tail = tail+1;
 			printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);
-			//ret = setQueueItemWithString(buf);
 			do_gettimeofday(&timeval_obj);
 			queue[tail].qid = push;
 			queue[tail].time = timeval_obj.tv_sec;
@@ -372,11 +411,6 @@ static int fifo_module_open(struct inode * inode, struct file * file)
 */
 static int fifo_module_release(struct inode * inode, struct file * file)
 {
-	/**
-	    Decrement and using the device_open variable as a
-	    synchronization mechanism.
-	*/
-	//device_open--;
 	printk(KERN_INFO "FIFO:Fifo module is being released.\n");
 
 	/** Successful execution of release callback */
@@ -421,7 +455,7 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 	num_empty_slots = mem_alloc_size - num_items;
 	fill_percentage = (num_items*100)/mem_alloc_size;
 	}
-	ret = sprintf(buf,"Allocated Size: %d\nNumber of items stored: %d\nNumber of empty slots: %d\nPercentage of filled slots: %d \nNumber of insertions performed: %d\nNumber of removals performed: %d\nActive No.of Producers: %d\nActive No.of Consumers: %d\nActive User level Producers: %d\nActive User level Consumers: %d\nFirst Data Item Sequence No:%d\nLatest Data Item Sequence No:%d\n", mem_alloc_size,num_items,num_empty_slots,fill_percentage,push,pop,producer_ctr,consumer_ctr,usr_producer_ctr,usr_consumer_ctr,queue[head].qid,queue[tail].qid);
+	ret = sprintf(buf,"Allocated Size: %d\nNumber of items stored: %d\nNumber of empty slots: %d\nPercentage of filled slots: %d \nNumber of insertions performed: %d\nNumber of removals performed: %d\nActive No.of Producers: %d\nActive No.of Consumers: %d\nActive User level Producers: %d\nActive User level Consumers: %d\nFirst Data Item Sequence No:%d\nLatest Data Item Sequence No:%d\n", mem_alloc_size,num_items,num_empty_slots,fill_percentage,push,pop,producer_ctr,consumer_ctr,user_level_producer_ctr,user_level_consumer_ctr,queue[head].qid,queue[tail].qid);
 
 		if(ret < 0) {
 			/** Memory allocation problem */
@@ -450,11 +484,7 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 */
 static ssize_t fifo_config_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
-	long int res;
-	int ret;
-	printk(KERN_INFO "FIFO:Fifo config module is being written.\n");
-
-	
+	printk(KERN_INFO "FIFO:Fifo config module is being written.\n");	
 	/** Successful execution of write callback with buffer count.*/
 	return count;
 }
@@ -505,7 +535,7 @@ static int fifo_config_module_release(struct inode * inode, struct file * file)
 }
 
 /**
-    File Operations for handling the /proc/fifo_config file accesses.
+    File Operations for handling the /proc/deeds_fifo_stat file accesses.
 */
 static struct file_operations fifo_config_module_fops = {
     .owner   =	THIS_MODULE,
@@ -530,16 +560,16 @@ static struct file_operations fifo_module_fops = {
 	Function Name : fifo_module_init
 	Function Type : Module INIT
 	Description   : Initialization method of the Kernel module. The
-			method gets invoked when the kernel module is being
-			inserted using the command insmod.
+					method gets invoked when the kernel module is being
+					inserted using the command insmod.
 */
 static int __init fifo_module_init(void)
 {
 	int ret;
 	printk(KERN_INFO "FIFO:FIFO module is being loaded.\n");
 
-	/**Proc FS is created with RD&WR permissions with name fifo_config*/
-	fifo_config_file_entry = proc_create(FIFO_CONFIG,0777,NULL,&fifo_config_module_fops);
+	/**Proc FS is created with RD ONLY permissions with name fifo_config*/
+	fifo_config_file_entry = proc_create(FIFO_CONFIG,0644,NULL,&fifo_config_module_fops);
 
 	/** Condition to verify if fifo_config creation was successful*/
 	if(fifo_config_file_entry == NULL) {
@@ -549,7 +579,7 @@ static int __init fifo_module_init(void)
 	}
 
 	/**
-	    Registering the Device with a major number as 240 and
+	    Registering the Device with a major number as 250 and
 	    configuring the file operations associated with it.
 	*/
 	ret = register_chrdev(MAJOR_NUM, FIFO_DEVICE, &fifo_module_fops);
@@ -596,8 +626,6 @@ static int __init fifo_module_init(void)
 	}
 	printk(KERN_INFO "FIFO:device class created correctly\n");
 
-	/** Device Status flag set to false because device not in use.*/
-   	device_open = 0;
 	/** Default Memory size of queue set to 8*/
 	mem_alloc_size = fifo_size;
 
@@ -628,15 +656,15 @@ static int __init fifo_module_init(void)
 	sema_init(&producer_mutex,1);
 	sema_init(&consumer_mutex,1);
 
-	sema_init(&usr_producer_mutex,1);
-	sema_init(&usr_consumer_mutex,1);
+	sema_init(&user_level_producer_mutex,1);
+	sema_init(&user_level_consumer_mutex,1);
 	
 	/** Initialize producer consumer counters */
 	producer_ctr=0;
 	consumer_ctr=0;
 
-	usr_producer_ctr=0;
-	usr_consumer_ctr=0;
+	user_level_producer_ctr=0;
+	user_level_consumer_ctr=0;
 
 	num_items = 0;
 	num_empty_slots = fifo_size;
@@ -674,91 +702,6 @@ static void __exit fifo_module_cleanup(void)
 	kfree(queue);
 }
 
-/**
-	Function Name   :   setQueueItemWithString
-	Function Type   :   Custom
-	Description     :   Method used to set the data item of queue from
-						the passed string.
-	Parameter       :   buf is the string which is parsed and set.
-*/
-int setQueueItemWithString(const char *buf) {
-
-	int ret,i=0,j=0;
-	char mod_string[100],msg_string[100];
-	sprintf(mod_string,buf);
-
-	while((mod_string[i]!=',') && (mod_string[i]!='\0')) {
-		msg_string[j] = mod_string[i];
-		i++;
-		j++;
-	}
-	msg_string[j] = '\0';
-	printk(KERN_INFO "FIFO: MSG 1 = %s\n", msg_string);
-	j=0;
-	i++;
-	ret = kstrtol(msg_string,BASE_10,&queue[tail].qid);
-	printk(KERN_INFO "FIFO: after ret");
-	if(ret < 0) {
-		/** Invalid argument in conversion error.*/
-		return -EINVAL;
-	}
-
-
-	while((mod_string[i]!=',') && (mod_string[i]!='\0')) {
-		msg_string[j] = mod_string[i];
-		i++;
-		j++;
-	}
-	msg_string[j] = '\0';
-	j=0;
-	i++;
-	printk(KERN_INFO "FIFO: MSG 2 = %s.\n", msg_string);
-	ret = kstrtol(msg_string,BASE_10,&queue[tail].time);
-	if(ret < 0) {
-		/** Invalid argument in conversion error.*/
-		return -EINVAL;
-	}
-
-
-	while((mod_string[i]!=',') && (mod_string[i]!='\0')) {
-		msg_string[j] = mod_string[i];
-		i++;
-		j++;
-	}
-	msg_string[j] = '\0';
-	j=0;
-
-	/*if(queue[tail].msg!=NULL) {     //modified
-		kfree(queue[tail].msg);
-	}*/
-
-	printk(KERN_INFO "FIFO: MSG 3= %s.\n", msg_string);
-	queue[tail].msg = kmalloc(strlen(msg_string),GFP_KERNEL);
-	ret = sprintf(queue[tail].msg,msg_string);
-	printk(KERN_INFO "FIFO: queue[tail].msg= %s.\n", queue[tail].msg);
-	printk(KERN_INFO "FIFO: ret= %s.\n", ret);
-	if(ret < 0) {
-		/** Invalid argument in conversion error.*/
-		return -EINVAL;
-	}
-	return ret;
-}
-
-/**
-	Function Name   :   queueDataItemAsString
-	Function Type   :   Custom
-	Description     :   Method used to return the data item as String
-	Parameter       :   Item in queue is passed which needs to be
-						converted into string.
-*/
-
-
-char* queueDataItemAsString(struct data_item item) {
-
-	char buf[100];
-	sprintf(buf,"d,%lld,%s",item.qid,item.time,item.msg);
-	return item.msg;
-}
 
 /**
 	Function Name   :   queueAlloc
@@ -785,17 +728,24 @@ int queueAlloc(int mem_size) {
 		return -ENOMEM;
 	}
 	/** Setting the memory allocation size */
-	//mem_alloc_size = mem_size;
 	mem_alloc_size = mem_size;
 
 	/** FIFO HEAD Set to FIRST Location. */
-	//queue[0] = END_OF_BUFF;
 	head = -1;
 	tail = -1;
 
 	/** Successful execution of Queue Allocation method*/
 	return 0;
 }
+
+/**
+	Function Name   :   producerInc
+	Function Type   :   Safe Increment
+	Description     :   Method used to increment the producer counter
+	 					variable but in a safe way with the use of
+						Mutual Exclusion property.
+	Return	        :   
+*/
 
 int producerInc(void) {
 
@@ -810,6 +760,14 @@ int producerInc(void) {
 	return 0;
 }
 
+/**
+	Function Name   :   producerDec
+	Function Type   :   Safe Decrement
+	Description     :   Method used to decrement the producer counter
+	 					variable but in a safe way with the use of
+						Mutual Exclusion property.
+	Return	        :   
+*/
 int producerDec(void) {
 
 	if (down_interruptible(&producer_mutex)){
@@ -849,55 +807,55 @@ int consumerDec(void) {
 	return 0;
 }
 
-int usrproducerInc(void) {
+int userLevelProducerInc(void) {
 
-	if (down_interruptible(&usr_producer_mutex)){
+	if (down_interruptible(&user_level_producer_mutex)){
 		
 		printk(KERN_ALERT "FIFO ERROR:Producer counter Increment Mutex Failed");
 		return -ERESTARTSYS;
 	}
 
-	usr_producer_ctr++;
-	up(&usr_producer_mutex);
+	user_level_producer_ctr++;
+	up(&user_level_producer_mutex);
 	return 0;
 }
 
-int usrproducerDec(void) {
+int userLevelProducerDec(void) {
 
-	if (down_interruptible(&usr_producer_mutex)){
+	if (down_interruptible(&user_level_producer_mutex)){
 		
 		printk(KERN_ALERT "FIFO ERROR:Producer counter Decrement Mutex Failed");
 		return -ERESTARTSYS;
 	}
 
-	usr_producer_ctr--;
-	up(&usr_producer_mutex);
+	user_level_producer_ctr--;
+	up(&user_level_producer_mutex);
 	return 0;
 }
 
-int usrconsumerInc(void) {
+int userLevelConsumerInc(void) {
 
-	if (down_interruptible(&usr_consumer_mutex)){
+	if (down_interruptible(&user_level_consumer_mutex)){
 		
 		printk(KERN_ALERT "FIFO ERROR:Consumer counter Increment Mutex Failed");
 		return -ERESTARTSYS;
 	}
 
-	usr_consumer_ctr++;
-	up(&usr_consumer_mutex);
+	user_level_consumer_ctr++;
+	up(&user_level_consumer_mutex);
 	return 0;
 }
 
-int usrconsumerDec(void) {
+int userLevelConsumerDec(void) {
 
-	if (down_interruptible(&usr_consumer_mutex)){
+	if (down_interruptible(&user_level_consumer_mutex)){
 		
 		printk(KERN_ALERT "FIFO ERROR:Consumer counter Decrement Mutex Failed");
 		return -ERESTARTSYS;
 	}
 
-	usr_consumer_ctr--;
-	up(&usr_consumer_mutex);
+	user_level_consumer_ctr--;
+	up(&user_level_consumer_mutex);
 	return 0;
 }
 /** Initializing the kernel module init with custom init method */
