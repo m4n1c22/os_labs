@@ -484,11 +484,7 @@ static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t coun
 */
 static ssize_t fifo_config_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
 {
-	long int res;
-	int ret;
-	printk(KERN_INFO "FIFO:Fifo config module is being written.\n");
-
-	
+	printk(KERN_INFO "FIFO:Fifo config module is being written.\n");	
 	/** Successful execution of write callback with buffer count.*/
 	return count;
 }
@@ -539,7 +535,7 @@ static int fifo_config_module_release(struct inode * inode, struct file * file)
 }
 
 /**
-    File Operations for handling the /proc/fifo_config file accesses.
+    File Operations for handling the /proc/deeds_fifo_stat file accesses.
 */
 static struct file_operations fifo_config_module_fops = {
     .owner   =	THIS_MODULE,
@@ -564,16 +560,16 @@ static struct file_operations fifo_module_fops = {
 	Function Name : fifo_module_init
 	Function Type : Module INIT
 	Description   : Initialization method of the Kernel module. The
-			method gets invoked when the kernel module is being
-			inserted using the command insmod.
+					method gets invoked when the kernel module is being
+					inserted using the command insmod.
 */
 static int __init fifo_module_init(void)
 {
 	int ret;
 	printk(KERN_INFO "FIFO:FIFO module is being loaded.\n");
 
-	/**Proc FS is created with RD&WR permissions with name fifo_config*/
-	fifo_config_file_entry = proc_create(FIFO_CONFIG,0777,NULL,&fifo_config_module_fops);
+	/**Proc FS is created with RD ONLY permissions with name fifo_config*/
+	fifo_config_file_entry = proc_create(FIFO_CONFIG,0644,NULL,&fifo_config_module_fops);
 
 	/** Condition to verify if fifo_config creation was successful*/
 	if(fifo_config_file_entry == NULL) {
@@ -583,7 +579,7 @@ static int __init fifo_module_init(void)
 	}
 
 	/**
-	    Registering the Device with a major number as 240 and
+	    Registering the Device with a major number as 250 and
 	    configuring the file operations associated with it.
 	*/
 	ret = register_chrdev(MAJOR_NUM, FIFO_DEVICE, &fifo_module_fops);
