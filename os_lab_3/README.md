@@ -42,4 +42,16 @@ Solving the producer consumer problem.
 
 *Note: Insertions and deletions can also be done using the combination of LKMs and /dev/deeds_fifo drivers*
 
+####Executing pr_cs.sh
+
+*`pr_cs.sh` is a shell script which acts as a user level producer/consumer based on the parameter passed.
+* Usage is `sh pr_cs.sh p 2 msg prod_1` where `p` is mode as in producer mode, `2` is rate of inflow, `msg` is the message and `prod_1` is the instance name.
+* Usage is `sh pr_cs.sh c 2 consumer_1` where `c` is mode as in consumer mode, `2` is rate of outflow and `consumer_1` is the instance name.
+
+####Executing task2_3.sh
+
+*`task2_3.sh` is a shell script which automates the user level producers  & consumers.
+* Usage is `sh task2_3.sh`.
+
+
 Hope you have fun!!!
