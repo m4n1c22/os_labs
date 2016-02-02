@@ -2,7 +2,7 @@
 
 mode=$1
 rate=$2
-
+limit=100
 if [ "$mode" = "c" ]
 then 
 	echo consumer mode with rate $rate
@@ -12,7 +12,7 @@ then
 	then
 		echo command usage is pr_cs.sh \<c\> \<rate\> \<inst\>
 	else
-		while [ "$count" -lt 100 ]
+		while [ "$count" -lt "$limit" ]
 		do		
 			consume_item=$(cat /dev/deeds_fifo)
 			echo consumer instance $inst : $consume_item
@@ -34,7 +34,7 @@ then
 	then	
 		echo command usage is pr_cs.sh \<p\> \<rate\> \<msg\> \<inst\>
 	else
-		while [ "$count" -lt 100 ]
+		while [ "$count" -lt "$limit" ]
 		do
 			sudo echo $msg>/dev/deeds_fifo
 			echo producer instance $inst : written data.
@@ -46,11 +46,13 @@ then
 elif [ "$mode" = "stats" ]
 then
 	a=0
-	while [ "$a" -lt 100 ]
+	while [ "$a" -lt "$limit" ]
 	do
 		stats=$(cat /proc/deeds_fifo_stats)
 		echo Stats: '\n' $stats
 		a=`expr $a + 1`
+		sleep_rate=`expr 1 / $rate`
+		sleep $sleep_rate
 	done
 else
 	echo command usage is pr_cs.sh \<p\|c\|stats\> \<rate\> \<msg\> \<inst\>
