@@ -21,7 +21,8 @@ then
 			count=`expr $count + 1`
 		done
 	fi
-else
+elif [ "$mode" = "p" ] 
+then
 	echo producer mode with rate $rate
 	count=0
 	msg=$3
@@ -42,5 +43,16 @@ else
 			count=`expr $count + 1`
 		done		
 	fi
-
+elif [ "$mode" = "stats" ]
+then
+	a=0
+	while [ "$a" -lt 100 ]
+	do
+		stats=$(cat /proc/deeds_fifo_stats)
+		echo Stats: '\n' $stats
+		a=`expr $a + 1`
+	done
+else
+	echo command usage is pr_cs.sh \<p\|c\|stats\> \<rate\> \<msg\> \<inst\>
 fi
+
