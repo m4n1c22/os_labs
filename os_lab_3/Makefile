@@ -1,6 +1,6 @@
 #MACROS
 #obj-m := task1_1.o
-obj-m += task1_1.o
+obj-m += fifo.o
 obj-m += producer.o
 obj-m += consumer.o
 PWD := $(shell pwd)

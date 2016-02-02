@@ -15,8 +15,7 @@ def create_kernel_consumers():
 def create_make_file():
 	fo = open('Makefile', 'w+')
 	fo.write('#MACROS'
-	'#obj-m := task1_1.o\n'
-	'obj-m += task1_1.o\n'
+	'obj-m += fifo.o\n'
 	'obj-m += producer_1.o\n'
 	'obj-m += producer_2.o\n'
 	'obj-m += consumer_1.o\n'
@@ -32,7 +31,7 @@ def create_make_file():
 
 
 def insert_kernel_modules():
-	os.system("sudo insmod task1_1.ko fifo_size=43")
+	os.system("sudo insmod fifo.ko fifo_size=43")
 	os.system("./fifo_perm.sh")
 	os.system("gcc -o task task2_2.c")
 	os.system("sudo insmod producer_1.ko rate=2 msg='funnymsgs' instance='producer_1'")

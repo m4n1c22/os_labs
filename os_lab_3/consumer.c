@@ -7,12 +7,16 @@
 				rate of outflow and instance name.				
 
 */
+/** HEADER FILES*/
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/workqueue.h>
 
+/** Module Author */
 MODULE_AUTHOR("Team Mango");
+/** Module Description */
 MODULE_DESCRIPTION("Lab Solution Task 2 Consumer LKM");
+/** Module License */
 MODULE_LICENSE("GPL");
 
 /** Parameters passed into the module*/
@@ -84,11 +88,11 @@ static void consume_item(void){
 	
 	/** Condition check if bytes read is zero.*/
 	if (bytes_read == 0)
-		printk(KERN_ALERT "Consumer instance %s:we couldn't read\n",instance);
+		printk(KERN_ALERT "Consumer instance %s:Read failed\n",instance);
 	else {		
-		printk(KERN_ALERT "Consumer instance %s:we have read %d bytes\n",instance,(int)bytes_read);
+		printk(KERN_INFO "Consumer instance %s:Read %d bytes\n",instance,(int)bytes_read);
 		/** Outputing read item in the kernel log. Viewed by dmesg cmd.*/
-		printk(KERN_ALERT "Consumer instance %s:consumed one item: %s\n",instance,buffer);
+		printk(KERN_INFO "Consumer instance %s:consumed one item: %s\n",instance,buffer);
 	}
 	/** Condition check for consumer unloading flag set or not.*/
 	if (flag==0){
@@ -113,7 +117,7 @@ static int __init consumer_init_module(void) {
 	bool q_status=false;
 	
 	/** Logging the rate,message passed into the module.*/
-	printk(KERN_ALERT "Consumer instance %s:Consumer loaded with rate:%d\n", instance,rate);
+	printk(KERN_INFO "Consumer instance %s:Consumer loaded with rate:%d\n", instance,rate);
 	
 	/**
 		Allocating the workqueue under the name consumer-wq and max 1
@@ -124,7 +128,7 @@ static int __init consumer_init_module(void) {
 	/** Condition check if the workqueue allocation failed */
 	if (consumer_wq == NULL) {
 		
-		printk(KERN_ERR "Consumer instance %s ERROR:Consumer Workqueue couldn't allocated\n",instance);
+		printk(KERN_ERR "Consumer instance %s ERROR:Consumer Workqueue cannot be allocated\n",instance);
 		/** Memory Allocation Problem */
 		return -ENOMEM;
 	}
@@ -134,7 +138,7 @@ static int __init consumer_init_module(void) {
 		/** Setting the delayed work execution for the provided rate */
 		q_status= queue_delayed_work(consumer_wq,&consumer,HZ/rate);
 	}
-	printk(KERN_ALERT "Consumer instance %s:Scheduler closed, we are exiting now.\n",instance);
+	printk(KERN_ALERT "Consumer instance %s:Scheduler closed, module terminating now.\n",instance);
 	
 	/** Successfully executed the init module*/
 	return 0;
@@ -157,7 +161,7 @@ static void __exit consumer_exit_module(void) {
 	/** Deallocating the Work Queue */
 	destroy_workqueue(consumer_wq);
 	printk(KERN_ALERT "Consumer instance %s :Workqueue Destroyed\n",instance);
-	printk(KERN_ALERT "Consumer instance %s :Producer module unloaded\n",instance);
+	printk(KERN_ALERT "Consumer instance %s :Producer Module Unloaded\n",instance);
 }
 
 /** Initializing the kernel module init with custom init method */

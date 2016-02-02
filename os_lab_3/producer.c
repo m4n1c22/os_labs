@@ -6,12 +6,16 @@
 				producer-consumer problem. The module loads in with a 
 				rate of inflow, message and instance name.				
 */
+/** HEADER FILES*/
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/workqueue.h>
 
+/** Module Author */
 MODULE_AUTHOR("Team Mango");
+/** Module Description */
 MODULE_DESCRIPTION("Lab Solution Task 2 Producer LKM");
+/** Module License */
 MODULE_LICENSE("GPL");
 
 /** Parameters passed into the module*/
@@ -67,7 +71,7 @@ static void produce_item(void){
 	/** offset pointer referenced with offset variable */
 	off = &offset;
 	
-	printk(KERN_ALERT "Producer instance %s:writing \t%s\n",instance,msg);
+	printk(KERN_INFO "Producer instance %s:Writing: %s\n",instance,msg);
 	
 	/** Size of bytes to be written as the passed message string.*/
 	size=strlen(msg);
@@ -81,10 +85,10 @@ static void produce_item(void){
 	
 	/** Condition check if bytes read is zero.*/
 	if (bytes_written==0){
-		printk(KERN_ALERT "Producer instance %s ERROR:we couldn't write\n",instance);
+		printk(KERN_ALERT "Producer instance %s:Write Failed.\n",instance);
 	}
 	else 
-		printk(KERN_ALERT "Producer instance %s:we have written %d bytes of %s",instance,(int)bytes_written,msg);
+		printk(KERN_INFO "Producer instance %s: %d bytes have been written.",instance,(int)bytes_written);
 	
 	/** Condition check for producer unloading flag set or not.*/
 	if (flag == 0){
@@ -108,8 +112,8 @@ static int __init producer_init_module(void) {
 	bool q_status=false;
 	
 	/** Logging the rate,message passed into the module.*/
-	printk(KERN_ALERT "Producer instance %s:loaded with rate:%d\n", instance, rate);
-	printk(KERN_ALERT "Producer instance %s:loaded with msg:%s\n", instance, msg);
+	printk(KERN_INFO "Producer instance %s:loaded with rate:%d\n", instance, rate);
+	printk(KERN_INFO "Producer instance %s:loaded with msg:%s\n", instance, msg);
 	
 	/**
 		Allocating the workqueue under the name producer-wq and max 5
@@ -120,7 +124,7 @@ static int __init producer_init_module(void) {
 	/** Condition check if the workqueue allocation failed */
 	if (producer_wq== NULL){
 		
-		printk(KERN_ERR "Producer instance %s ERROR:Workqueue couldn't be allocated\n",instance);
+		printk(KERN_ERR "Producer instance %s ERROR:Workqueue cannot be allocated\n",instance);
 		/** Memory Allocation Problem */
 		return -ENOMEM;
 	}
@@ -130,7 +134,6 @@ static int __init producer_init_module(void) {
 		/** Setting the delayed work execution for the provided rate */
 		q_status = queue_delayed_work(producer_wq, &producer, HZ/rate);
 	}
-	printk(KERN_ALERT "Producer instance %s:exported call returned in producer\n",instance);
 	
 	/** Successfully executed the init module*/
 	return 0;
@@ -155,7 +158,7 @@ static void __exit producer_exit_module(void) {
 	/** Deallocating the Work Queue */
 	destroy_workqueue(producer_wq);
 	printk(KERN_ALERT "Producer instance %s :Workqueue Destroyed\n",instance);
-	printk(KERN_ALERT "Producer instance %s :Producer module unloaded\n",instance);
+	printk(KERN_ALERT "Producer instance %s :Producer Module Unloaded\n",instance);
 }
 
 /** Initializing the kernel module init with custom init method */

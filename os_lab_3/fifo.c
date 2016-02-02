@@ -1,8 +1,15 @@
 /**
-	\file	:	task1_1.c
+	\file	:	fifo.c
 	\author	: 	Team Mango
-	\brief	:	Task 1 of OS Lab-3 related to FIFO Queue implemented.
+	\brief	:	OS Lab-3 related to FIFO Queue implementation.
+				The file contains a FIFO Queue implementation which can
+				be accessed via driver at the location /dev/deeds_fifo
+				in User Land and can be accessed across other LKMs via
+				respective read and write methods. The FIFO queue stats
+				can be verified via /proc/deeds_fifo_stats file.
 */
+
+/** HEADER FILES*/
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -15,8 +22,11 @@
 #include <linux/semaphore.h>
 #include <linux/time.h>
 
+/** Module Author */
 MODULE_AUTHOR("Team Mango");
-MODULE_DESCRIPTION("Lab Solution Task 1.1");
+/** Module Description */
+MODULE_DESCRIPTION("FIFO Implementation");
+/** Module License */
 MODULE_LICENSE("GPL");
 
 /** STANDARD MACROS */
@@ -26,23 +36,19 @@ MODULE_LICENSE("GPL");
 
 /** MEMORY ALLOCATION RELATED MACROS */
 
-#define LOWER_LIMIT         4
-#define UPPER_LIMIT         4096
 #define DEFAULT_MEM_SIZE    32
-
-#define IN_RANGE(MEM)       ((MEM>=LOWER_LIMIT)&&(MEM<=UPPER_LIMIT))
 
 /** DEVICE RELATED MACROS */
 
 #define FIFO_DEVICE        "deeds_fifo"
 #define FIFO_DEVICE_NAME   "deeds_fifo"
-#define FIFO_CONFIG        "deeds_fifo_stats"
+#define FIFO_STATS         "deeds_fifo_stats"
 #define MAJOR_NUM          250
 #define MINOR_NUM_FIFO     0
 #define CLASS_NAME         "fifo_class"
 
 /** Proc FS File Object */
-static struct proc_dir_entry *fifo_config_file_entry;
+static struct proc_dir_entry *fifo_stats_file_entry;
 
 /** Device Class Object */
 static struct class*  fifoClass  = NULL;
@@ -54,14 +60,14 @@ static struct device* fifo = NULL;
 static int mem_alloc_size;
 
 /** Flags */
-static int finished_config;
+static int finished_stats;
 static int finished_fifo;
 
 /** User Defined Data Item Structure */
 struct data_item {
-	unsigned int qid;
-	unsigned long long time;
-	char *msg;
+	unsigned int qid; /** Queue ID*/
+	unsigned long long time; /** Creation time */
+	char *msg; /** Custom message stored in the Queue Item */
 };
 
 
@@ -79,6 +85,8 @@ static int pop;
 /** Producer Consumer counters */
 static int producer_ctr;
 static int consumer_ctr;
+
+/** User Level Producer Consumer counters */
 static int user_level_producer_ctr;
 static int user_level_consumer_ctr;
 
@@ -99,12 +107,13 @@ static struct semaphore full;
 static struct semaphore producer_mutex;
 static struct semaphore consumer_mutex;
 
+/** Semaphores for user level producer-consumer counters */
 static struct semaphore user_level_producer_mutex;
 static struct semaphore user_level_consumer_mutex;
 
 /** 
 	Safe Incremental/Decremental Functions for all producers 
-	and consumers.
+	and consumers counters.
 */
 int producerInc(void);
 int producerDec(void);
@@ -113,7 +122,7 @@ int consumerDec(void);
 
 /** 
 	Safe Incremental/Decremental Functions for user-level producers 
-	and consumers.
+	and consumers counters.
 */
 int userLevelProducerInc(void);
 int userLevelProducerDec(void);
@@ -124,7 +133,7 @@ int userLevelConsumerDec(void);
 static ssize_t fifo_read(char *buf, size_t count, loff_t *ppos);
 static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos);
 
-/** Exporting Functions*/
+/** Exporting Functions to be accessed in other LKMs */
 EXPORT_SYMBOL_GPL(fifo_read);
 EXPORT_SYMBOL_GPL(fifo_write);
 
@@ -386,68 +395,177 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 	/** Timeval object for finding the current time */
 	struct timeval timeval_obj;
 
+	/** Performing a safe Increment of Producer counter */
 	ret=producerInc();
-	if (ret!=0)
+	
+	/** Verifying if Mutual exclusion inhibits the propagation.*/
+	if (ret!=0) {
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
-
-	if (( buf == NULL) ||  (*buf == 0)) {
-		ret=producerDec();
-		if (ret!=0)
-			return -ERESTARTSYS;
-      	return -ENOMEM;
 	}
-
-	if (down_interruptible(&full)){
-		printk(KERN_ALERT "FIFO ERROR:Write access failed.");
+	
+	/** Checking if the Write buffer is empty or not. */
+	if (( buf == NULL) ||  (*buf == 0)) {
+		/** Performing a safe Decrement of Producer counter */
 		ret=producerDec();
-		if (ret!=0)
+		/** Verifying if Mutual exclusion inhibits the propagation.*/
+		if (ret!=0) {
+			/** Issue a restart of syscall which was supposed to be executed.*/
 			return -ERESTARTSYS;
+		}
+		/** Memory Allocation Problem */
+	  	return -ENOMEM;
+	}
+	
+	/** 
+		Condition to verify the down operation on the counting semaphore
+		full. Execution of a successful down operation in full
+		semaphore indicates the queue is safe from Overflow error.
+	*/
+	if (down_interruptible(&full)){
+		
+		printk(KERN_ALERT "FIFO ERROR:Write access failed with Overflow error.");
+		/** Performing a safe Decrement of Producer counter */
+		ret=producerDec();
+		/** Verifying if Mutual exclusion inhibits the propagation.*/
+		if (ret!=0) {
+			/** Issue a restart of syscall which was supposed to be executed.*/
+			return -ERESTARTSYS;
+		}
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
 	}
 	else {
+		/** 
+			Condition to verify the down operation on the binary semaphore
+			mutex. Entry into a Mutually exclusive block is granted by
+			having a successful lock with the mentioned semaphore.
+			mutex semaphore provides a safe access to the following
+			critical section.
+		*/
 		if (down_interruptible(&mutex)){
+		
 			printk(KERN_ALERT "FIFO ERROR: Mutual Exclusive access failed from write module");
+	
+			/** 
+				Performing an up operation on counting semaphore full.
+				Reseting the full semaphore to original state. Thereby,
+				performing transaction rollback.
+			*/
 			up(&full);
+			/** Performing a safe Decrement of Producer counter */
 			ret=producerDec();
-			if (ret!=0)
+			/** Verifying if Mutual exclusion inhibits the propagation.*/
+			if (ret!=0) {
+				/** Issue a restart of syscall which was supposed to be executed.*/
 				return -ERESTARTSYS;
+			}
+			/** Issue a restart of syscall which was supposed to be executed.*/
 			return -ERESTARTSYS;
 		}
 		else {
 
-			
+			/** 
+				Verifying if the head and tail pointers are invalid. 
+				Indicates the presence of an empty queue. Set the head
+				to first index location.
+			*/
 			if((head == -1)&&(tail==-1)) {
+				/** Setting head point to first index.*/
 				head = 0;
 			}
+			/**
+				Condition check for tail pointing to maximum index
+				location in the queue. If it is the case, change the
+				tail to point to the invalid index. Since tail 
+				will be incremented later on indicating a circular queue 
+				operation.
+			*/
 			else if(tail==mem_alloc_size-1) {
+				
+				/** Invalidating the tail pointer */
 				tail=-1;
 			}
-			tail = tail+1;
-			printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);
-			do_gettimeofday(&timeval_obj);
-			queue[tail].qid = push;
-			queue[tail].time = timeval_obj.tv_sec;
-			queue[tail].msg = kmalloc(strlen(buf),GFP_KERNEL);
-			ret=sprintf(queue[tail].msg,buf);
 			
+			/** Increment tail pointer to next indexed location */
+			tail = tail+1;
+			
+			printk(KERN_INFO "FIFO:head = %d, tail = %d", head,tail);
+			/** 
+				Finding the current time using the system call
+				gettimeofday()
+			*/
+			do_gettimeofday(&timeval_obj);
+			
+			/**
+				Initializing the data item in the queue at the indexed 
+				location tail. 
+			*/
+			/** Setting Queue ID*/
+			queue[tail].qid = push; 
+			/** Setting Creation Time as seconds */
+			queue[tail].time = timeval_obj.tv_sec; 
+			
+			/** 
+				Allocating memory for the message string with the 
+				write buffer size. 
+			*/
+			queue[tail].msg = kmalloc(strlen(buf),GFP_KERNEL);
+			/** Setting queue message with the incoming write buffer. */
+			ret=sprintf(queue[tail].msg,buf);
+			/** Verifying if the read buffer is successfully loaded.*/
 			if(ret<0) {
+				/** 
+					Performing an up operation on mutex. Such an operation
+					indicates the critical section is released for other
+					processes/threads.
+				*/	
 				up(&mutex);
+				/** 
+					Performing an up operation on counting semaphore full.
+					Reseting the full semaphore to original state. Thereby,
+					performing transaction rollback.
+				*/
 				up(&full);
+				
+				/** Performing a safe Decrement of Producer counter */
 				ret=producerDec();
-				if (ret!=0)
-					return -ERESTARTSYS;				
+				/** Verifying if Mutual exclusion inhibits the propagation.*/
+				if (ret!=0) {
+					/** Issue a restart of syscall which was supposed to be executed.*/
+					return -ERESTARTSYS;
+				}
+				/** Erroneous return value */
 				return ret;
 			}
 			printk(KERN_INFO "FIFO:Fifo module is being written.\n");
 
-
+			/** 
+				Incrementing the push variable for determining the
+				total number of insertions in the FIFO Queue.
+			*/
 			push = push + 1;
-
+		
+			/** 
+				Performing an up operation on mutex. Such an operation
+				indicates the critical section is released for other
+				processes/threads.
+			*/
 			up(&mutex);
+			/** 
+				Performing an up operation on counting semaphore empty.
+				Such an operation denotes an decrease in empty slots in
+				the queue.
+			*/
 			up(&empty);
+	
+			/** Performing a safe Decrement of Producer counter */
 			ret=producerDec();
-			if (ret!=0)
+			/** Verifying if Mutual exclusion inhibits the propagation.*/
+			if (ret!=0) {
+				/** Issue a restart of syscall which was supposed to be executed.*/
 				return -ERESTARTSYS;
+			}
 			/** Successful execution of write callback with buffer count.*/
 			return count;
 		}
@@ -459,18 +577,14 @@ static ssize_t fifo_write(const char *buf, size_t count, loff_t *ppos)
 	Function Name : fifo_module_open
 	Function Type : Kernel Callback Method
 	Description   : Method is invoked whenever the fifo device files are
-			opened. This callback method is triggered when an
-			open operation performed on the devices register to
-			this file operation object. The open system call is
-			invoked whenever an operation of read/write is
-			performed on the device.
-			FIFO Devices are allocated with one device being
-			read only(FIFO1) and other being write only(FIFO0).
+					opened. This callback method is triggered when an
+					open operation performed on the devices register to
+					this file operation object. The open system call is
+					invoked whenever an operation of read/write is
+					performed on the device.
 */
 static int fifo_module_open(struct inode * inode, struct file * file)
 {
-	
-
 	/** Finished flag set to false indicating file is just opened.*/
 	finished_fifo = 0;
 
@@ -484,9 +598,7 @@ static int fifo_module_open(struct inode * inode, struct file * file)
 	Description   : Method is invoked whenever the fifo device files are
         	        closed. This callback method is triggered when a
                 	close operation performed on the devices register to
-        		this file operation object.
-			FIFO Devices are allocated with one device being
-			read only(FIFO1) and other being write only(FIFO0).
+					this file operation object.
 */
 static int fifo_module_release(struct inode * inode, struct file * file)
 {
@@ -501,93 +613,89 @@ static int fifo_module_release(struct inode * inode, struct file * file)
 	Function Name : fifo_config_module_read
 	Function Type : Kernel Callback Method
 	Description   : Method is invoked whenever the fifo_config file is
-			read. This callback method is triggered when a read
-			operation performed on the /proc/fifo_config.
-			The /proc/fifo_config contains the information about
-			the memory info	of the FIFO Queue. Such as allocated
-			size, free size and total size.	The fifo_config is a
-			RD/WR file. But can only be written if the queue is
-			not in use.
+					read. This callback method is triggered when a read
+					operation performed on the /proc/fifo_config.
+					The /proc/fifo_config contains the information about
+					the memory info	of the FIFO Queue. Such as allocated
+					size, free size and total size.	The fifo_config is a
+					RDONLY file.
 */
-static ssize_t fifo_config_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
+static ssize_t fifo_stats_module_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
+	/** return value storage variables */
 	int ret;
+	
+	int latest_index,poppable_index;
 	printk(KERN_INFO "FIFO:Fifo config module is being read.\n");
 
 
-        /** Condition to check if EOF is reached. */
-	if(!finished_config){
+    /** Condition to check if EOF is reached. */
+	if(!finished_stats){
 		/** Flag set to Completed marking EOF.*/
-		  finished_config = 1;
-
-	if(head==-1 && tail==-1) {
-		num_items=0;
-		num_empty_slots=mem_alloc_size;
-		fill_percentage=0;
-		queue[head].qid=0;
-		queue[tail].qid=0;
-		
+		  finished_stats = 1;
+		/** 
+			Check if the head and tail indexes invalidated.
+		*/
+		if((head==-1) && (tail==-1)) {
+			/** Set number of items as zero.*/
+			num_items=0;
+			/** Number of empty slots set as memory allocation size*/
+			num_empty_slots=mem_alloc_size;
+			/** Set fill percentage as zero */
+			fill_percentage=0;
+			
+			/** Setting poppable and latest index */
+			poppable_index=-1;
+			latest_index=-1;
+			
 		}
 
-	else {
-  	num_items = tail - head + 1;
-	num_empty_slots = mem_alloc_size - num_items;
-	fill_percentage = (num_items*100)/mem_alloc_size;
-	}
-	ret = sprintf(buf,"Allocated Size: %d\nNumber of items stored: %d\nNumber of empty slots: %d\nPercentage of filled slots: %d \nNumber of insertions performed: %d\nNumber of removals performed: %d\nActive No.of Producers: %d\nActive No.of Consumers: %d\nActive User level Producers: %d\nActive User level Consumers: %d\nFirst Data Item Sequence No:%d\nLatest Data Item Sequence No:%d\n", mem_alloc_size,num_items,num_empty_slots,fill_percentage,push,pop,producer_ctr,consumer_ctr,user_level_producer_ctr,user_level_consumer_ctr,queue[head].qid,queue[tail].qid);
+		else {
+			/** Setting number of items */
+			num_items = push - pop;
+			/** Number of empty slots */
+			num_empty_slots = mem_alloc_size - num_items;
+			/** Setting fill percentage */
+			fill_percentage = (num_items*100)/mem_alloc_size;
+			
+			/** Setting poppable and latest index */
+			poppable_index = queue[head].qid;
+			latest_index = queue[tail].qid;
+		}
+		/** Setting the read buffer of the fifo_config module read*/
+		ret = sprintf(buf,"Allocated Size: %d\nNumber of items stored: %d\nNumber of empty slots: %d\nPercentage of filled slots: %d \nNumber of insertions performed: %d\nNumber of removals performed: %d\nActive No.of Producers: %d\nActive No.of Consumers: %d\nActive User level Producers: %d\nActive User level Consumers: %d\nFirst Data Item Sequence No:%d\nLatest Data Item Sequence No:%d\n", mem_alloc_size,num_items,num_empty_slots,fill_percentage,push,pop,producer_ctr,consumer_ctr,user_level_producer_ctr,user_level_consumer_ctr,poppable_index,latest_index);
 
+		/** Verifying if the load was successful or not.*/
 		if(ret < 0) {
 			/** Memory allocation problem */
 			return -ENOMEM;
-			}
+		}
 		/** Successful execution of read callback with some bytes*/
 		return ret;
 	}
-
-	
 	/** Successful execution of read callback with EOF reached.*/
 	return 0;
-}
-
-/**
-	Function Name : fifo_config_module_write
-	Function Type : Kernel Callback Method
-	Description   : Method is invoked whenever the fifo_config file is
-			written. This callback method is triggered when a
-			write operation performed on the /proc/fifo_config.
-			The /proc/fifo_config contains the information
-			about the memory info of the FIFO Queue. Such as
-			allocated size, free size and total size. The
-			fifo_config is a RD/WR file. But can only be written
-			if the queue is not in use.
-*/
-static ssize_t fifo_config_module_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
-{
-	printk(KERN_INFO "FIFO:Fifo config module is being written.\n");	
-	/** Successful execution of write callback with buffer count.*/
-	return count;
 }
 
 /**
 	Function Name : fifo_config_module_open
 	Function Type : Kernel Callback Method
 	Description   : Method is invoked whenever the fifo_config file is
-			opened. This callback method is triggered when an
-			open operation performed on the	/proc/fifo_config.
-			This can be triggered on calls for read/write
-			operations on /proc/fifo_config file.
-			The /proc/fifo_config contains the information about
-			the memory info	of the FIFO Queue. Such as allocated
-			size, free size and total size.	The fifo_config is a
-			RD/WR file. But can only be written if the queue is
-			not in use.
+					opened. This callback method is triggered when an
+					open operation performed on the	/proc/deeds_fifo_stats.
+					This can be triggered on calls for read operations 
+					on /proc/deeds_fifo_stats file.					
+					The /proc/deeds_fifo_stats contains the information 
+					about the memory info of the FIFO Queue. Such as 
+					allocated size, free size and total size. The 
+					deeds_fifo_stats is a RDONLY file.
 */
-static int fifo_config_module_open(struct inode * inode, struct file * file)
+static int fifo_stats_module_open(struct inode * inode, struct file * file)
 {
 	printk(KERN_INFO "FIFO:Fifo config module is being opened.\n");
 
 	/** Finished flag set to false indicating file is just opened.*/
-	finished_config = 0;
+	finished_stats = 0;
 	/** Successful execution of open callback. */
 	return 0;
 }
@@ -596,17 +704,17 @@ static int fifo_config_module_open(struct inode * inode, struct file * file)
 	Function Name : fifo_config_module_release
 	Function Type : Kernel Callback Method
 	Description   : Method is invoked whenever the fifo_config file is
-			closed. This callback method is triggered when a
-			close operation performed on the /proc/fifo_config.
-			This can be triggered on calls for read/write
-			operations on /proc/fifo_config file.
-			The /proc/fifo_config contains the information about
-			the memory info	of the FIFO Queue. Such as allocated
-			size, free size and total size.	The fifo_config is a
-			RD/WR file. But can only be written if the queue is
-			not in use.
+					closed. This callback method is triggered when a
+					close operation performed on the 
+					/proc/deeds_fifo_stats. This can be triggered on 
+					calls for RDONLY operations on 
+					/proc/deeds_fifo_stats file.
+					The /proc/deeds_fifo_stats contains the information 
+					about the memory info of the FIFO Queue. Such as 
+					allocated size, free size and total size.	
+					The deeds_fifo_stats is a RDONLY file.
 */
-static int fifo_config_module_release(struct inode * inode, struct file * file)
+static int fifo_stats_module_release(struct inode * inode, struct file * file)
 {
 	printk(KERN_INFO "FIFO:Fifo config module is being released.\n");
 	/** Successful execution of release callback */
@@ -614,18 +722,17 @@ static int fifo_config_module_release(struct inode * inode, struct file * file)
 }
 
 /**
-    File Operations for handling the /proc/deeds_fifo_stat file accesses.
+    File Operations for handling the /proc/deeds_fifo_stats file accesses.
 */
-static struct file_operations fifo_config_module_fops = {
+static struct file_operations fifo_stats_module_fops = {
     .owner   =	THIS_MODULE,
-    .read    =	fifo_config_module_read,
-    .write   =	fifo_config_module_write,
-    .open    =	fifo_config_module_open,
-    .release =	fifo_config_module_release,
+    .read    =	fifo_stats_module_read,
+    .open    =	fifo_stats_module_open,
+    .release =	fifo_stats_module_release,
 };
 
 /**
-    File Operations for handling the fifo devices file accesses.
+    File Operations for handling the fifo device file accesses.
 */
 static struct file_operations fifo_module_fops = {
     .owner   =	THIS_MODULE,
@@ -647,12 +754,15 @@ static int __init fifo_module_init(void)
 	int ret;
 	printk(KERN_INFO "FIFO:FIFO module is being loaded.\n");
 
-	/**Proc FS is created with RD ONLY permissions with name fifo_config*/
-	fifo_config_file_entry = proc_create(FIFO_CONFIG,0644,NULL,&fifo_config_module_fops);
+	/**
+		Proc FS is created with RD ONLY permissions with name 
+		deeds_fifo_stats
+	*/
+	fifo_stats_file_entry = proc_create(FIFO_STATS,0644,NULL,&fifo_stats_module_fops);
 
 	/** Condition to verify if fifo_config creation was successful*/
-	if(fifo_config_file_entry == NULL) {
-		printk(KERN_ALERT "FIFO ERROR: Could not initialize /proc/%s\n",FIFO_CONFIG);
+	if(fifo_stats_file_entry == NULL) {
+		printk(KERN_ALERT "FIFO ERROR: Could not initialize /proc/%s\n",FIFO_STATS);
 		/** FILE CREATION PROBLEM */
 		return -ENOMEM;
 	}
@@ -686,10 +796,10 @@ static int __init fifo_module_init(void)
 	}
 	printk(KERN_INFO "FIFO: device class registered correctly\n");
 
-    	/**
-            Registering the device driver for the provided device class. The
-            device driver is associated with fifo0 with minor number as 0.
-    	*/
+	/**
+		Registering the device driver for the provided device class. The
+		device driver is associated with fifo0 with minor number as 0.
+	*/
 	fifo = device_create(fifoClass, NULL, MKDEV(MAJOR_NUM, MINOR_NUM_FIFO), NULL, FIFO_DEVICE_NAME);
 
 	/** Condition for error verification during driver creation.*/
@@ -705,10 +815,16 @@ static int __init fifo_module_init(void)
 	}
 	printk(KERN_INFO "FIFO:device class created correctly\n");
 
-	/** Default Memory size of queue set to 8*/
+	/** 
+		Setting queue memory allocation size variable to module param 
+		FIFO size 
+	*/
 	mem_alloc_size = fifo_size;
 
-	/** Queue Allocated with the default size.*/
+	/** 
+		Queue Allocated with the data item struct with a memory size of
+		inputted FIFO size
+	*/
 	queue = (struct data_item*)kmalloc(mem_alloc_size*sizeof(struct data_item),GFP_KERNEL);
 
 	/** Condition to check if the memory allocation was successful.*/
@@ -718,35 +834,65 @@ static int __init fifo_module_init(void)
 		return -ENOMEM;
 	}
 
-	/** FIFO HEAD Set to FIRST Location. */
+	/** Invalidating head and tail pointers of the queue */
 	head = -1;
 	tail = -1;
 
 	/** Initializing push and pop counters*/
-
 	push = 0;
 	pop = 0;
 
 	/** Initializing the semaphores */
-	sema_init(&mutex,1);
+	/** 
+		Setting Mutex used for critical section inside fifo modules
+		as 1. Indicates the critical section is free from use.
+	*/
+	sema_init(&mutex,1); 
+	/**
+		Initializing the counting semaphore empty to 0. Indicates FIFO
+		Queue is empty. 
+	*/
 	sema_init(&empty,0);
+	/**
+		Initializing the counting semaphore empty to queue size. 
+		Indicates FIFO Queue is empty. 
+	*/
 	sema_init(&full,mem_alloc_size);
-
+	/** 
+		Setting Mutex used for critical section with producer counters
+		as 1. Indicates the critical section is free from use.
+	*/	
 	sema_init(&producer_mutex,1);
+	/** 
+		Setting Mutex used for critical section with consumer counters
+		as 1. Indicates the critical section is free from use.
+	*/
 	sema_init(&consumer_mutex,1);
-
+	/** 
+		Setting Mutex used for critical section with user level producer
+		counters as 1. Indicates the critical section is free from use.
+	*/
 	sema_init(&user_level_producer_mutex,1);
+	/** 
+		Setting Mutex used for critical section with user level consumer
+		counters as 1. Indicates the critical section is free from use.
+	*/
 	sema_init(&user_level_consumer_mutex,1);
 	
 	/** Initialize producer consumer counters */
 	producer_ctr=0;
 	consumer_ctr=0;
-
+	
+	/** Initialize user level producer consumer counters */
 	user_level_producer_ctr=0;
 	user_level_consumer_ctr=0;
 
-	num_items = 0;
-	num_empty_slots = fifo_size;
+	/** Initializing FIFO stats variables */
+	/** Setting number of items in queue as 0 */
+	num_items = 0; 
+	/** Initializing empty slots as FIFO size*/
+	num_empty_slots = fifo_size; 
+	/** Set percentage fill slots in queue as 0*/
 	fill_percentage = 0;
 
 	/** Successful execution of initialization method. */
@@ -766,8 +912,7 @@ static void __exit fifo_module_cleanup(void)
 	printk(KERN_INFO "FIFO:FIFO module is being unloaded.\n");
 
 	/** Removing the Proc FS entry. */
-	proc_remove(fifo_config_file_entry);
-
+	proc_remove(fifo_stats_file_entry);
 	/** Removing the device with minor number 0 => FIFO0 */
 	device_destroy(fifoClass, MKDEV(MAJOR_NUM, MINOR_NUM_FIFO));
 	/** Deregistering the class FIFO*/
@@ -776,7 +921,6 @@ static void __exit fifo_module_cleanup(void)
 	class_destroy(fifoClass);
 	/** Deregistering the character Device FIFO*/
 	unregister_chrdev(MAJOR_NUM, FIFO_DEVICE);
-
 	/** Deallocating the Queue */
 	kfree(queue);
 }
@@ -786,9 +930,9 @@ static void __exit fifo_module_cleanup(void)
 	Function Name   :   queueAlloc
 	Function Type   :   Custom
 	Description     :   Method used to allocate/re-allocate the queue
-                            from various module calls.
+                        from various module calls.
 	Parameter       :   mem_size is used to allocate the memory for the
-                            queue provided.
+                        queue provided.
 */
 int queueAlloc(int mem_size) {
 
@@ -809,7 +953,7 @@ int queueAlloc(int mem_size) {
 	/** Setting the memory allocation size */
 	mem_alloc_size = mem_size;
 
-	/** FIFO HEAD Set to FIRST Location. */
+	/** FIFO head & tail Set to invalidated locations. */
 	head = -1;
 	tail = -1;
 
@@ -821,120 +965,317 @@ int queueAlloc(int mem_size) {
 	Function Name   :   producerInc
 	Function Type   :   Safe Increment
 	Description     :   Method used to increment the producer counter
-	 					variable but in a safe way with the use of
-						Mutual Exclusion property.
-	Return	        :   
+	 					variable but, in a safe way with the use of
+						Mutual Exclusion property. Internally the method
+						use the semaphore producer_mutex as a simple 
+						mutual exclusion lock.
+	Return	        :   IF the execution is successful -> 0
+						ELSE-> -ERESTARTSYS
 */
 
 int producerInc(void) {
 
+	/** 
+		Check if a safe down operation can be performed on the 
+		producer_mutex. Indicates the critical section can be acquired
+		by the accessing thread for performing the increment operation 
+		on the producer counter.
+	*/
 	if (down_interruptible(&producer_mutex)){
 		
 		printk(KERN_ALERT "FIFO ERROR:Producer counter Increment Mutex Failed");
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
 	}
-
+	/** Increment the producer counter.*/
 	producer_ctr++;
+	/** 
+		Perform an up operation on the producer_mutex. Indicates the
+		critical section is being released for other threads to access.
+	*/
 	up(&producer_mutex);
+	/** Successful execution of the producer increment operation.*/
 	return 0;
 }
+
 
 /**
 	Function Name   :   producerDec
 	Function Type   :   Safe Decrement
 	Description     :   Method used to decrement the producer counter
-	 					variable but in a safe way with the use of
-						Mutual Exclusion property.
-	Return	        :   
+	 					variable but, in a safe way with the use of
+						Mutual Exclusion property. Internally the method
+						use the semaphore producer_mutex as a simple 
+						mutual exclusion lock.
+	Return	        :   IF the execution is successful -> 0
+						ELSE-> -ERESTARTSYS
 */
 int producerDec(void) {
 
+	/** 
+		Check if a safe down operation can be performed on the 
+		producer_mutex. Indicates the critical section can be acquired
+		by the accessing thread for performing the decrement operation 
+		on the producer counter.
+	*/
 	if (down_interruptible(&producer_mutex)){
 		
 		printk(KERN_ALERT "FIFO ERROR:Producer counter Decrement Mutex Failed");
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
 	}
-
+	/** Decrement the producer counter.*/
 	producer_ctr--;
+	/** 
+		Perform an up operation on the producer_mutex. Indicates the
+		critical section is being released for other threads to access.
+	*/
 	up(&producer_mutex);
+	/** Successful execution of the producer decrement operation.*/
 	return 0;
 }
 
+/**
+	Function Name   :   consumerInc
+	Function Type   :   Safe Increment
+	Description     :   Method used to increment the consumer counter
+	 					variable but, in a safe way with the use of
+						Mutual Exclusion property. Internally the method
+						use the semaphore consumer_mutex as a simple 
+						mutual exclusion lock.
+	Return	        :   IF the execution is successful -> 0
+						ELSE-> -ERESTARTSYS
+*/
 int consumerInc(void) {
 
+	/** 
+		Check if a safe down operation can be performed on the 
+		consumer_mutex. Indicates the critical section can be acquired
+		by the accessing thread for performing the increment operation 
+		on the consumer counter.
+	*/
 	if (down_interruptible(&consumer_mutex)){
 		
 		printk(KERN_ALERT "FIFO ERROR:Consumer counter Increment Mutex Failed");
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
 	}
-
+	/** Increment the consumer counter.*/
 	consumer_ctr++;
+	/** 
+		Perform an up operation on the consumer_mutex. Indicates the
+		critical section is being released for other threads to access.
+	*/
 	up(&consumer_mutex);
+	/** Successful execution of the consumer increment operation.*/
 	return 0;
 }
 
+/**
+	Function Name   :   consumerDec
+	Function Type   :   Safe Decrement
+	Description     :   Method used to decrement the consumer counter
+	 					variable but, in a safe way with the use of
+						Mutual Exclusion property. Internally the method
+						use the semaphore consumer_mutex as a simple 
+						mutual exclusion lock.
+	Return	        :   IF the execution is successful -> 0
+						ELSE-> -ERESTARTSYS
+*/
 int consumerDec(void) {
-
+	
+	/** 
+		Check if a safe down operation can be performed on the 
+		consumer_mutex. Indicates the critical section can be acquired
+		by the accessing thread for performing the decrement operation 
+		on the consumer counter.
+	*/
 	if (down_interruptible(&consumer_mutex)){
 		
 		printk(KERN_ALERT "FIFO ERROR:Consumer counter Decrement Mutex Failed");
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
 	}
-
+	
+	/** Decrement the consumer counter.*/
 	consumer_ctr--;
+	/** 
+		Perform an up operation on the consumer_mutex. Indicates the
+		critical section is being released for other threads to access.
+	*/
 	up(&consumer_mutex);
+	/** Successful execution of the consumer decrement operation.*/
 	return 0;
 }
 
+/**
+	Function Name   :   userLevelProducerInc
+	Function Type   :   Safe Increment
+	Description     :   Method used to increment the user level producer
+						counter	variable but, in a safe way with the use
+						of Mutual Exclusion property. Internally the 
+						method use the semaphore 
+						user_level_producer_mutex as a simple mutual 
+						exclusion lock.
+	Return	        :   IF the execution is successful -> 0
+						ELSE-> -ERESTARTSYS
+*/
 int userLevelProducerInc(void) {
 
+	/** 
+		Check if a safe down operation can be performed on the 
+		user_level_producer_mutex. Indicates the critical section can be 
+		acquired by the accessing thread for performing the increment 
+		operation on the user level producer counter.
+	*/
 	if (down_interruptible(&user_level_producer_mutex)){
 		
 		printk(KERN_ALERT "FIFO ERROR:Producer counter Increment Mutex Failed");
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
 	}
-
+	
+	/** Increment the user level producer counter.*/
 	user_level_producer_ctr++;
+	/** 
+		Perform an up operation on the user_level_producer_mutex. 
+		Indicates the critical section is being released for other
+		threads to access.
+	*/
 	up(&user_level_producer_mutex);
+	/** 
+		Successful execution of the user level producer increment 
+		operation.
+	*/
 	return 0;
 }
 
+/**
+	Function Name   :   userLevelProducerDec
+	Function Type   :   Safe Decrement
+	Description     :   Method used to decrement the user level producer
+						counter	variable but, in a safe way with the use
+						of Mutual Exclusion property. Internally the 
+						method use the semaphore 
+						user_level_producer_mutex as a simple mutual 
+						exclusion lock.
+	Return	        :   IF the execution is successful -> 0
+						ELSE-> -ERESTARTSYS
+*/
 int userLevelProducerDec(void) {
 
+	/** 
+		Check if a safe down operation can be performed on the 
+		user_level_producer_mutex. Indicates the critical section can be 
+		acquired by the accessing thread for performing the decrement 
+		operation on the user level producer counter.
+	*/
 	if (down_interruptible(&user_level_producer_mutex)){
 		
 		printk(KERN_ALERT "FIFO ERROR:Producer counter Decrement Mutex Failed");
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
 	}
-
+	
+	/** Decrement the user level producer counter.*/
 	user_level_producer_ctr--;
+
+	/** 
+		Perform an up operation on the user_level_producer_mutex. 
+		Indicates the critical section is being released for other
+		threads to access.
+	*/
 	up(&user_level_producer_mutex);
+	/** 
+		Successful execution of the user level producer decrement 
+		operation.
+	*/
 	return 0;
 }
 
+/**
+	Function Name   :   userLevelConsumerInc
+	Function Type   :   Safe Increment
+	Description     :   Method used to increment the user level consumer
+						counter	variable but, in a safe way with the use
+						of Mutual Exclusion property. Internally the 
+						method use the semaphore 
+						user_level_consumer_mutex as a simple mutual 
+						exclusion lock.
+	Return	        :   IF the execution is successful -> 0
+						ELSE-> -ERESTARTSYS
+*/
 int userLevelConsumerInc(void) {
 
+	/** 
+		Check if a safe down operation can be performed on the 
+		user_level_consumer_mutex. Indicates the critical section can be 
+		acquired by the accessing thread for performing the increment 
+		operation on the user level consumer counter.
+	*/
 	if (down_interruptible(&user_level_consumer_mutex)){
 		
 		printk(KERN_ALERT "FIFO ERROR:Consumer counter Increment Mutex Failed");
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
 	}
 
+	/** Increment the user level consumer counter.*/
 	user_level_consumer_ctr++;
+
+	/** 
+		Perform an up operation on the user_level_consumer_mutex. 
+		Indicates the critical section is being released for other
+		threads to access.
+	*/
 	up(&user_level_consumer_mutex);
+	/** 
+		Successful execution of the user level consumer increment 
+		operation.
+	*/
 	return 0;
 }
 
+/**
+	Function Name   :   userLevelConsumerInc
+	Function Type   :   Safe Increment
+	Description     :   Method used to decrement the user level consumer
+						counter	variable but, in a safe way with the use
+						of Mutual Exclusion property. Internally the 
+						method use the semaphore 
+						user_level_consumer_mutex as a simple mutual 
+						exclusion lock.
+	Return	        :   IF the execution is successful -> 0
+						ELSE-> -ERESTARTSYS
+*/
 int userLevelConsumerDec(void) {
 
+	/** 
+		Check if a safe down operation can be performed on the 
+		user_level_consumer_mutex. Indicates the critical section can be 
+		acquired by the accessing thread for performing the decrement 
+		operation on the user level consumer counter.
+	*/
 	if (down_interruptible(&user_level_consumer_mutex)){
 		
 		printk(KERN_ALERT "FIFO ERROR:Consumer counter Decrement Mutex Failed");
+		/** Issue a restart of syscall which was supposed to be executed.*/
 		return -ERESTARTSYS;
 	}
 
+	/** Decrement the user level consumer counter.*/
 	user_level_consumer_ctr--;
+
+	/** 
+		Perform an up operation on the user_level_consumer_mutex. 
+		Indicates the critical section is being released for other
+		threads to access.
+	*/
 	up(&user_level_consumer_mutex);
+	/** 
+		Successful execution of the user level consumer decrement 
+		operation.
+	*/
 	return 0;
 }
 /** Initializing the kernel module init with custom init method */
