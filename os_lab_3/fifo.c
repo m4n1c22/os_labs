@@ -175,11 +175,11 @@ static ssize_t fifo_module_read(struct file *file, char *buf, size_t count, loff
 		return 0;
 	}
 	
-	/** Flag set to Completed marking EOF.*/
-	finished_fifo = 1;
-	
 	/** Calling the internal fifo_read() method call.*/
 	ret_fiforead=fifo_read(buf,count,ppos);
+	
+	/** Flag set to Completed marking EOF.*/
+	finished_fifo = 1;
 	
 	/** Performing a safe Decrement of User Level Consumer counter*/
 	ret=userLevelConsumerDec();
