@@ -44,10 +44,11 @@ Solving the producer consumer problem.
 
 ####Executing pr_cs.sh
 
-*`pr_cs.sh` is a shell script which acts as a user level producer/consumer based on the parameter passed.
+*`pr_cs.sh` is a shell script which acts as a user level producer/consumer with a provision to provide stats of queue in use based on the parameter passed.
 * Usage is `sh pr_cs.sh p 2 msg prod_1` where `p` is mode as in producer mode, `2` is rate of inflow, `msg` is the message and `prod_1` is the instance name.
 * Usage is `sh pr_cs.sh c 2 consumer_1` where `c` is mode as in consumer mode, `2` is rate of outflow and `consumer_1` is the instance name.
-
+* Usage is `sh pr_cs.sh stats 2` where `stats` is mode as in FIFO Stats mode, `2` is sleep rate or how frequent the stats data is accessed.
+ 
 ####Executing task2_3.sh
 
 *`task2_3.sh` is a shell script which automates the user level producers  & consumers.
