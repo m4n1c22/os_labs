@@ -54,5 +54,5 @@ Solving the producer consumer problem.
 *`task2_3.sh` is a shell script which automates the user level producers  & consumers.
 * Usage is `sh task2_3.sh`.
 
-
+*Note: Before running the shell scripts ensure that you are in SuperUser mode.*
 Hope you have fun!!!
