@@ -14,7 +14,7 @@ def create_kernel_consumers():
 
 def create_make_file():
 	fo = open('Makefile', 'w+')
-	fo.write('#MACROS'
+	fo.write('#MACROS\n'
 	'obj-m += fifo.o\n'
 	'obj-m += producer_1.o\n'
 	'obj-m += producer_2.o\n'
@@ -46,6 +46,4 @@ def insert_kernel_modules():
 create_kernel_producers()
 create_kernel_consumers()
 create_make_file()
-os.system("make clean")
-os.system("make")
-insert_kernel_modules()
+
