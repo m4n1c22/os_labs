@@ -1,6 +1,5 @@
 #!\bin\sh
 
-
 insmod fifo.ko fifo_size=43
 ./fifo_perm.sh
 insmod producer_1.ko rate=2 msg='funny_by_prod1' instance='prod_1'

@@ -16,7 +16,8 @@ then
 		do		
 			consume_item=$(cat /dev/deeds_fifo)
 			echo consumer instance $inst : $consume_item
-			sleep_rate=`expr 1 / $rate`
+			sleep_rate=$(awk -v m=$rate 'BEGIN { print 1/m}')
+			echo sleep rate = $sleep_rate
 			sleep $sleep_rate
 			count=`expr $count + 1`
 		done
@@ -38,7 +39,8 @@ then
 		do
 			sudo echo $msg>/dev/deeds_fifo
 			echo producer instance $inst : written data.
-			sleep_rate=`expr 1 / $rate`
+			sleep_rate=$(awk -v m=$rate 'BEGIN { print 1/m}')
+			echo sleep rate = $sleep_rate
 			sleep $sleep_rate
 			count=`expr $count + 1`
 		done		
