@@ -51,8 +51,7 @@ then
 		stats=$(cat /proc/deeds_fifo_stats)
 		echo Stats: '\n' $stats
 		a=`expr $a + 1`
-		sleep_rate=`expr 1 / $rate`
-		sleep $sleep_rate
+		sleep $rate
 	done
 else
 	echo command usage is pr_cs.sh \<p\|c\|stats\> \<rate\> \<msg\> \<inst\>
