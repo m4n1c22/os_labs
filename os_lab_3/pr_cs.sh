@@ -49,7 +49,7 @@ then
 	while [ "$a" -lt "$limit" ]
 	do
 		stats=$(cat /proc/deeds_fifo_stats)
-		echo Stats: '\n' $stats
+		echo Stats: '\n' UpTime: "$(</proc/uptime awk '{print $1}')"'\n' $stats
 		a=`expr $a + 1`
 		sleep $rate
 	done
