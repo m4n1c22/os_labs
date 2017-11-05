@@ -1,10 +1,10 @@
-####OS LAB
+#### OS LAB
 
-####Objective:
+#### Objective:
 Understanding various Operating Systems fundamentals such Processes, Threads and IPC.
 
-####Code 
-#####Structure
+#### Code 
+##### Structure
 The folder contains: 
 - Makefile 
 - task1_1.c - Implementation of task1_1. Understanding the implementation of ***fork()***
@@ -14,7 +14,7 @@ The folder contains:
 - task5_1.c - Implementation of task5_1. Understanding the implementation of Shared Memory (IPC) 
 - common.h  - All the common headerfiles, macros, enumerations used in the tasks.
  
-#####Build & Run
+##### Build & Run
  
 Makefile is meant to build the various tasks in the given folder.
 For compiling the tasks use the command ```make```. 
